@@ -1,0 +1,1562 @@
+<!DOCTYPE html>
+<html lang="ja" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>情報システム基礎 クイズ＆要約＆管理マスター</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- LaTeX数式表示用のKaTeX -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'media',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans JP', 'sans-serif'],
+                    },
+                    fontSize: {
+                        'xxs': '0.65rem',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+        .progress-bar-transition {
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .tab-transition {
+            transition: all 0.2s ease-in-out;
+        }
+        .scrollbar-none::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-none {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 h-full flex flex-col font-sans transition-colors duration-200">
+
+    <!-- ヘッダー -->
+    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40 transition-colors">
+        <div class="max-w-md mx-auto px-4 py-3 flex flex-col space-y-2">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <div class="bg-blue-600 text-white p-2 rounded-xl shadow-md shadow-blue-500/20">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    </div>
+                    <div>
+                        <h1 class="text-sm font-bold tracking-tight text-slate-800 dark:text-white">情報システム基礎</h1>
+                        <p class="text-xxs text-slate-500 dark:text-slate-400">コンピュータシステム学習マスター</p>
+                    </div>
+                </div>
+                <!-- 保存ステータスインジケーター -->
+                <div id="sync-indicator" class="flex items-center space-x-1 bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full text-xxs font-medium text-slate-500 dark:text-slate-400">
+                    <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                    <span id="sync-status-text">ローカル保存中</span>
+                </div>
+            </div>
+
+            <!-- モード切り替えタブ -->
+            <div class="grid grid-cols-3 bg-slate-100 dark:bg-slate-700 p-1 rounded-xl gap-1">
+                <button id="tab-quiz" onclick="switchTab('quiz')" class="tab-transition py-1.5 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">
+                    クイズ
+                </button>
+                <button id="tab-summary" onclick="switchTab('summary')" class="tab-transition py-1.5 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">
+                    要約カンペ
+                </button>
+                <button id="tab-manage" onclick="switchTab('manage')" class="tab-transition py-1.5 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">
+                    問題・講義管理
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="flex-1 overflow-y-auto w-full max-w-md mx-auto px-4 py-4 pb-12">
+
+        <!-- ==================== クイズタブ ==================== -->
+        <div id="quiz-view" class="fade-in space-y-4">
+            
+            <!-- クイズ出題範囲フィルター -->
+            <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-150 dark:border-slate-700 shadow-sm space-y-2">
+                <div class="flex justify-between items-center text-xxs font-semibold text-slate-500 dark:text-slate-400">
+                    <span>🎯 出題範囲の指定</span>
+                    <span id="quiz-filter-label" class="text-blue-600 dark:text-blue-400">すべて</span>
+                </div>
+                <!-- 横スクロール講義回セレクター -->
+                <div class="flex space-x-1.5 overflow-x-auto pb-1 scrollbar-none" id="quiz-lecture-filter-container">
+                    <!-- JavaScriptで動的生成 -->
+                </div>
+            </div>
+
+            <!-- クイズ進行状況パネル -->
+            <div id="quiz-progress-panel" class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-150 dark:border-slate-700 shadow-sm space-y-3">
+                <div class="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+                    <span class="font-medium">問題 <span id="current-question-num" class="text-lg font-bold text-blue-600 dark:text-blue-400">0</span> / <span id="total-questions-num">0</span></span>
+                    <span class="font-medium bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full">正答率: <span id="current-accuracy">0</span>%</span>
+                </div>
+                <!-- プログレスバー -->
+                <div class="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                    <div id="quiz-progress-bar" class="bg-blue-600 h-full rounded-full progress-bar-transition" style="width: 0%;"></div>
+                </div>
+            </div>
+
+            <!-- クイズ本体カード -->
+            <div id="quiz-card" class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-150 dark:border-slate-700 shadow-md overflow-hidden min-h-[300px] flex flex-col justify-between">
+                <!-- 問題テキスト -->
+                <div class="p-6 flex-1 space-y-4">
+                    <div id="quiz-category-badge" class="inline-flex bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-lg text-xs font-semibold">
+                        IT基礎知識 ＆ 原理
+                    </div>
+                    <p id="question-text" class="text-base font-bold text-slate-800 dark:text-white leading-relaxed">
+                        問題をロード中、または選択された範囲の問題がありません...
+                    </p>
+                </div>
+                <!-- 選択肢ボタン群 -->
+                <div id="options-container" class="p-4 bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-150 dark:border-slate-700 space-y-2.5"></div>
+            </div>
+
+            <!-- フィードバック ＆ 解説エリア -->
+            <div id="feedback-panel" class="hidden fade-in p-5 rounded-2xl border flex flex-col space-y-3">
+                <div class="flex items-center space-x-2.5">
+                    <div id="feedback-icon" class="p-1 rounded-full text-white"></div>
+                    <span id="feedback-title" class="text-base font-bold">正解 / 不正解</span>
+                </div>
+                <p id="explanation-text" class="text-sm leading-relaxed text-slate-600 dark:text-slate-300"></p>
+                
+                <button id="next-btn" class="mt-2 w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-semibold rounded-xl shadow-lg transition duration-200 text-sm flex items-center justify-center space-x-1">
+                    <span>次の問題へ</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </button>
+            </div>
+
+            <!-- 結果画面 -->
+            <div id="results-panel" class="hidden fade-in bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-150 dark:border-slate-700 shadow-lg text-center space-y-6">
+                <div class="space-y-2">
+                    <div class="inline-flex p-4 bg-blue-50 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
+                        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138z"></path></svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-slate-800 dark:text-white">学習完了！</h2>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">今回の学習結果です。</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-2xl">
+                        <span class="text-xs text-slate-500 dark:text-slate-400 block mb-1">スコア</span>
+                        <span class="text-2xl font-bold text-slate-800 dark:text-white"><span id="result-score">0</span> / <span class="result-total-num">10</span></span>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-2xl">
+                        <span class="text-xs text-slate-500 dark:text-slate-400 block mb-1">正解率</span>
+                        <span class="text-2xl font-bold text-blue-600 dark:text-blue-400"><span id="result-accuracy">0</span>%</span>
+                    </div>
+                </div>
+
+                <div id="results-comment" class="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-xl text-sm font-medium leading-relaxed"></div>
+
+                <!-- 復習セクション -->
+                <div id="incorrect-review-section" class="text-left space-y-3 hidden">
+                    <h3 class="text-xs font-bold text-slate-400 tracking-wider uppercase">要チェックな間違えた問題</h3>
+                    <div id="incorrect-questions-list" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+                </div>
+
+                <div class="flex flex-col space-y-2 pt-2">
+                    <button onclick="restartQuiz()" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs transition shadow-lg shadow-blue-500/25">
+                        最初からもう一度
+                    </button>
+                    <button id="retry-incorrect-btn" onclick="retryIncorrectQuestions()" class="w-full py-3 px-4 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-xl text-xs transition shadow-lg shadow-amber-500/25 hidden">
+                        誤答問題のみに再挑戦
+                    </button>
+                    <button onclick="switchTab('summary')" class="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-xs transition">
+                        カンペを開く
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== 要約カンペタブ ==================== -->
+        <div id="summary-view" class="hidden fade-in space-y-5">
+            <div class="p-4 bg-blue-50 dark:bg-blue-950/40 rounded-2xl border border-blue-100 dark:border-blue-900/50 flex items-start space-x-3">
+                <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div class="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+                    <strong class="font-bold block mb-0.5">講義要約の確認</strong>
+                    学習したい講義回をクリックして選択できます。管理画面から新しい講義を追加したり、カンペCSVを取り込んだりすると、この解説内容が即座に同期更新されます。
+                </div>
+            </div>
+
+            <!-- 動的な講義回切り替えタブ（自動スクロール対応） -->
+            <div class="flex space-x-2 overflow-x-auto pb-2 scrollbar-none" id="summary-lecture-tabs">
+                <!-- JavaScriptで動的生成 -->
+            </div>
+
+            <!-- 動的にカンペを美麗な2カラム（キーワード左・説明右）で描画するホルダー -->
+            <div id="dynamic-summary-container" class="space-y-6"></div>
+        </div>
+
+        <!-- ==================== 問題・講義管理タブ ==================== -->
+        <div id="manage-view" class="hidden fade-in space-y-5">
+            <!-- インポート対象選択トグル -->
+            <div class="grid grid-cols-3 bg-slate-100 dark:bg-slate-700 p-1 rounded-xl gap-1">
+                <button id="btn-import-quiz" onclick="switchImportType('quiz')" class="py-1.5 text-[11px] font-semibold rounded-lg shadow-sm bg-white dark:bg-slate-600 text-slate-800 dark:text-white tab-transition">
+                    クイズ管理
+                </button>
+                <button id="btn-import-notes" onclick="switchImportType('notes')" class="py-1.5 text-[11px] font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white tab-transition">
+                    カンペ管理
+                </button>
+                <button id="btn-import-lectures" onclick="switchImportType('lectures')" class="py-1.5 text-[11px] font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white tab-transition">
+                    講義一覧管理
+                </button>
+            </div>
+
+            <!-- ==================== 1. クイズ追加・管理パネル ==================== -->
+            <div id="panel-import-quiz" class="space-y-5">
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-150 dark:border-slate-700 shadow-sm space-y-4">
+                    <div class="space-y-1">
+                        <h3 class="text-sm font-bold text-slate-800 dark:text-white">クイズ問題CSV一括インポート</h3>
+                        <p class="text-xxs text-slate-500 dark:text-slate-400">CSV形式ファイルを読み込んでクイズを追加します。</p>
+                    </div>
+
+                    <!-- 登録先の講義回指定（クイズ） -->
+                    <div class="bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl border border-slate-150 dark:border-slate-700 flex justify-between items-center">
+                        <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">取り込み先の講義:</span>
+                        <select id="quiz-import-target-lecture" class="p-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none max-w-[180px]">
+                            <!-- JavaScriptで動的生成 -->
+                        </select>
+                    </div>
+
+                    <!-- ファイルドロップゾーン -->
+                    <div id="quiz-drop-area" class="border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 rounded-2xl p-6 text-center cursor-pointer transition">
+                        <input type="file" id="quiz-file-input" accept=".csv" class="hidden" onchange="handleQuizFileSelect(event)">
+                        <div class="space-y-1 text-slate-500 dark:text-slate-400" onclick="document.getElementById('quiz-file-input').click()">
+                            <svg class="w-8 h-8 mx-auto mb-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                            <p class="text-xs font-semibold">クイズ用CSVをドロップ、または選択</p>
+                        </div>
+                    </div>
+
+                    <!-- クイズテキスト貼り付け -->
+                    <details class="text-xs text-slate-500 dark:text-slate-400 group">
+                        <summary class="cursor-pointer font-semibold hover:text-slate-800 dark:hover:text-white select-none">クイズCSVのテキストを直貼りして追加</summary>
+                        <div class="mt-2 space-y-2">
+                            <textarea id="quiz-csv-paste" rows="4" placeholder="問題文,選択肢1,選択肢2,選択肢3,選択肢4,正解,解説&#10;&quot;サンプルの問題です&quot;,&quot;選択肢A&quot;,&quot;選択肢B&quot;,&quot;選択肢C&quot;,&quot;選択肢D&quot;,&quot;選択肢A&quot;,&quot;その解説です&quot;" class="w-full p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xxs font-mono focus:outline-none"></textarea>
+                            <button onclick="importQuizFromPaste()" class="w-full py-2 bg-slate-800 dark:bg-blue-600 hover:bg-slate-700 text-white font-semibold rounded-lg text-xxs transition">テキストから取り込み</button>
+                        </div>
+                    </details>
+
+                    <div class="border-t border-slate-100 dark:border-slate-700 pt-3">
+                        <button onclick="exportDefaultQuizQuestions()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-xxs transition flex items-center justify-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            標準クイズ(20問)CSVを保存
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 1問ずつ手動追加 -->
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-150 dark:border-slate-700 shadow-sm space-y-4">
+                    <h3 class="text-sm font-bold text-slate-800 dark:text-white">1問ずつ登録</h3>
+                    <div class="space-y-3 text-xs">
+                        <div>
+                            <label class="block text-xxs font-semibold text-slate-500 mb-1">追加先の講義回</label>
+                            <select id="form-quiz-lecture-target" class="w-full p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none">
+                                <!-- JavaScriptで動的生成 -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xxs font-semibold text-slate-500 mb-1">問題文</label>
+                            <textarea id="form-question" rows="2" placeholder="問題文" class="w-full p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none"></textarea>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="form-opt1" placeholder="選択肢 1" class="p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none">
+                            <input type="text" id="form-opt2" placeholder="選択肢 2" class="p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none">
+                            <input type="text" id="form-opt3" placeholder="選択肢 3" class="p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none">
+                            <input type="text" id="form-opt4" placeholder="選択肢 4" class="p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xxs font-semibold text-slate-500 mb-1">正解（上記どれかの文字列と完全に一致させてください）</label>
+                            <input type="text" id="form-correct" placeholder="正解となる文字列" class="w-full p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xxs font-semibold text-slate-500 mb-1">解説</label>
+                            <textarea id="form-explanation" rows="2" placeholder="解説文" class="w-full p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none"></textarea>
+                        </div>
+                        <button onclick="addSingleQuestion()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs transition">クイズを追加する</button>
+                    </div>
+                </div>
+
+                <!-- クイズ一覧・管理 -->
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-150 dark:border-slate-700 shadow-sm space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-sm font-bold text-slate-800 dark:text-white">登録中のクイズ一覧 (<span id="manage-total-count">0</span>問)</h3>
+                        <button onclick="confirmClearAllQuizzes()" class="text-xxs font-semibold text-red-600 dark:text-red-400 hover:underline">全件削除</button>
+                    </div>
+                    <div id="manage-questions-list" class="space-y-3 max-h-72 overflow-y-auto pr-1"></div>
+                </div>
+            </div>
+
+            <!-- ==================== 2. 要約カンペ追加・管理パネル ==================== -->
+            <div id="panel-import-notes" class="space-y-5 hidden">
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-150 dark:border-slate-700 shadow-sm space-y-4">
+                    <div class="space-y-1">
+                        <h3 class="text-sm font-bold text-slate-800 dark:text-white">要約カンペのCSVインポート</h3>
+                        <p class="text-xxs text-slate-500 dark:text-slate-400">カンペ用のCSVデータを読み込んで、指定した回の要約カードを丸ごと上書きアップデートします。</p>
+                    </div>
+
+                    <!-- 上書き対象の講義選択 -->
+                    <div class="bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl border border-slate-150 dark:border-slate-700 flex justify-between items-center">
+                        <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">更新する講義を選択:</span>
+                        <select id="notes-target-lecture" class="p-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none max-w-[180px]">
+                            <!-- JavaScriptで動的生成 -->
+                        </select>
+                    </div>
+
+                    <!-- ファイルドロップゾーン -->
+                    <div id="notes-drop-area" class="border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 rounded-2xl p-6 text-center cursor-pointer transition">
+                        <input type="file" id="notes-file-input" accept=".csv" class="hidden" onchange="handleNotesFileSelect(event)">
+                        <div class="space-y-1 text-slate-500 dark:text-slate-400" onclick="document.getElementById('notes-file-input').click()">
+                            <svg class="w-8 h-8 mx-auto mb-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                            <p class="text-xs font-semibold">要約カンペ用CSVをドロップ、または選択</p>
+                        </div>
+                    </div>
+
+                    <!-- カンペテキスト貼り付け -->
+                    <details class="text-xs text-slate-500 dark:text-slate-400 group">
+                        <summary class="cursor-pointer font-semibold hover:text-slate-800 dark:hover:text-white select-none">要約カンペCSVのテキストを直貼りして登録</summary>
+                        <div class="mt-2 space-y-2">
+                            <textarea id="notes-csv-paste" rows="4" placeholder="分類,項目名,詳細な説明,特徴・補足,バッジ(任意)&#10;&quot;5大装置&quot;,&quot;制御装置&quot;,&quot;命令を解析し、他のすべての装置へ指示を出す装置&quot;,&quot;CPUを構成する一部&quot;,&quot;ITパスポート頻出&quot;" class="w-full p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xxs font-mono focus:outline-none"></textarea>
+                            <button onclick="importNotesFromPaste()" class="w-full py-2 bg-slate-800 dark:bg-blue-600 hover:bg-slate-700 text-white font-semibold rounded-lg text-xxs transition">テキストから取り込み</button>
+                        </div>
+                    </details>
+
+                    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+                        <button onclick="exportLecture2DefaultNotes()" class="py-2 px-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-xxs transition">
+                            第2回カンペ(標準)CSV
+                        </button>
+                        <button onclick="exportLecture3DefaultNotes()" class="py-2 px-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-xxs transition">
+                            第3回カンペ(標準)CSV
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 登録中のカンペ一覧・プレビュー -->
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-150 dark:border-slate-700 shadow-sm space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-sm font-bold text-slate-800 dark:text-white">現在のカンペ項目プレビュー</h3>
+                        <button onclick="confirmResetAllNotes()" class="text-xxs font-semibold text-red-600 dark:text-red-400 hover:underline">初期状態にリセット</button>
+                    </div>
+                    <div id="manage-notes-preview-list" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+                </div>
+            </div>
+
+            <!-- ==================== 3. 講義一覧管理パネル (新設) ==================== -->
+            <div id="panel-import-lectures" class="space-y-5 hidden">
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-150 dark:border-slate-700 shadow-sm space-y-4">
+                    <h3 class="text-sm font-bold text-slate-800 dark:text-white">新しい講義回を追加</h3>
+                    <p class="text-xxs text-slate-500 dark:text-slate-400">講義番号（例：4）とタイトル（例：第4回: ネットワーク構成）を入力して新しい講義回を作成します。新設した回は要約カンペとクイズに自動的に統合されます。</p>
+                    
+                    <div class="space-y-3 text-xs">
+                        <div>
+                            <label class="block text-xxs font-semibold text-slate-500 mb-1">講義キー (一意の数値または英数字。例: 4)</label>
+                            <input type="text" id="form-lecture-id" placeholder="例: 4" class="w-full p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xxs font-semibold text-slate-500 mb-1">講義タイトル</label>
+                            <input type="text" id="form-lecture-title" placeholder="例: 第4回: ネットワークシステムとインターネット" class="w-full p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none">
+                        </div>
+                        <button onclick="createNewLecture()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs transition">新しい講義回を登録</button>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-150 dark:border-slate-700 shadow-sm space-y-4">
+                    <h3 class="text-sm font-bold text-slate-800 dark:text-white">登録済みの講義セッション一覧</h3>
+                    <div id="manage-lectures-list" class="space-y-2.5">
+                        <!-- JavaScriptで動的生成 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 同期用識別ID -->
+            <div class="bg-slate-100 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 text-xxs text-slate-500 space-y-2">
+                <p class="font-bold text-slate-700 dark:text-slate-300">📱 ブラウザ識別用ID</p>
+                <div class="flex space-x-1.5">
+                    <input type="text" id="sync-id-input" readonly class="flex-1 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xxs font-mono select-all">
+                    <button onclick="copySyncId()" class="px-3 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-lg">コピー</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- カスタムモーダル -->
+    <div id="custom-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition duration-300">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-2xl p-6 w-full max-w-sm text-center transform scale-95 transition-all space-y-4">
+            <div id="modal-icon-container" class="mx-auto inline-flex p-3 rounded-full text-blue-600 bg-blue-50 dark:bg-blue-900/30">
+                <svg id="modal-icon" class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"></svg>
+            </div>
+            <h3 id="modal-title" class="text-base font-bold text-slate-800 dark:text-white">確認</h3>
+            <p id="modal-message" class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed"></p>
+            <div id="modal-actions" class="flex space-x-2 pt-2"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- 状態管理 ---
+        let currentQuizSet = []; 
+        let activeQuizSet = [];  
+        let currentQuestionIdx = 0;
+        let score = 0;
+        let answeredQuestions = []; 
+        let currentView = 'quiz';
+        
+        // 選択中の要約講義ID
+        let currentSummaryLecture = "2"; 
+        // 選択中のクイズフィルター講義ID ("all" or 講義ID)
+        let activeQuizFilter = "all";
+
+        let activeImportType = 'quiz'; // 'quiz', 'notes' or 'lectures'
+
+        // 講義セッションのデフォルトデータ
+        const defaultLectures = [
+            { id: "2", title: "第2回: 5大装置・アドレス" },
+            { id: "3", title: "第3回: 性能指標・並列" }
+        ];
+
+        // カンペのローカルストレージ用デフォルトデータ（スクリーンショットの仕様とKaTeXに対応）
+        const defaultSummaries = {
+            "2": [
+                { category: "1. コンピュータの5大装置", name: "制御装置", desc: "プログラム of 命令を取り出して解読し（フェッチ）、解読した装置をコントロールする。", note: "ITパスポート頻出。CPUを構成する一部。", badge: "ITパスポート頻出" },
+                { category: "1. コンピュータの5大装置", name: "演算装置", desc: "四則演算や論理演算を実務。算術論理演算装置（ALU）と呼ばれる。", note: "CPUを構成する一部。", badge: "ITパスポート頻出" },
+                { category: "1. コンピュータの5大装置", name: "記憶装置", desc: "主記憶（電源切ると消える・極めて高速、メモリ等）と、補助記憶（電源切っても消えない、SSD/HDD等）に大別。", note: "主記憶は揮発性、補助記憶は不揮発性。", badge: "ITパスポート頻出" },
+                { category: "1. コンピュータの5大装置", name: "入力・出力", desc: "外部から情報を取り込む（マウス・キー）と、処理結果を出力する（ディスプレイ・印刷）機器。", note: "人間とコンピュータの物理的な接点。", badge: "ITパスポート頻出" },
+                { category: "2. CPU内の主要レジスタ & サイクル", name: "プログラムカウンタ (PC)", desc: "次に実行する命令が入っている主記憶上のアドレスを指す。", note: "フェッチごとに自動で1加算。", badge: "最重要" },
+                { category: "2. CPU内の主要レジスタ & サイクル", name: "命令レジスタ (IR) / デコーダ", desc: "取り出した命令そのものを記憶する（IR）。それを解読して命令デコーダが指示を出します。", note: "解読サイクル（デコード）で動作。", badge: "応用情報級" },
+                { category: "2. CPU内の主要レジスタ & サイクル", name: "アキュムレータ", desc: "演算の対象となるデータや演算結果を一時的に記憶する。", note: "算術論理演算装置と連携。", badge: "応用情報級" },
+                { category: "2. CPU内の主要レジスタ & サイクル", name: "命令実行の4段階サイクル", desc: "1. フェッチ (PCをもとに命令取り出す) / 2. デコード (命令コードを解読する) / 3. オペランド読出し (メモリアドレス等から対象データをロード) / 4. 命令実行 (ALUが演算し結果を書き戻す)", note: "一連の手順を繰り返して動作します。", badge: "応用情報級" },
+                { category: "3. 機械語のアドレス指定方式", name: "① 即値アドレス指定方式", desc: "オペランド部（アドレス部）に、データそのものが入っている。メモリへの参照が発生しないため最速。", note: "定数設定などに最適。", badge: "差がつくポイント" },
+                { category: "3. 機械語のアドレス指定方式", name: "② 直接アドレス指定方式", desc: "オペランド部の値がそのまま実効アドレスを指し示す方式。", note: "アドレス範囲が制限される。", badge: "差がつくポイント" },
+                { category: "3. 機械語のアドレス指定方式", name: "③ 間接アドレス指定方式", desc: "オペランド部に、目的特性を示すアドレスが格納されており、複数回経由してデータを取り出す方式。", note: "低速だが広範囲指定可能。", badge: "差がつくポイント" }
+            ],
+            "3": [
+                { category: "1. CPUの性能指標", name: "クロック周波数 / クロックサイクル時間", desc: "1秒間に繰り返されるクロック信号の回数（Hz）。その逆数が1クロックに要する所要時間（クロックサイクル時間）。", note: "1GHzなら1ナノ秒（$10^{-9}$秒）。", badge: "重要指標" },
+                { category: "1. CPUの性能指標", name: "CPI (Clock cycles Per Instruction)", desc: "1つの命令を処理するのに必要な平均クロックサイクル数。", note: "数値が小さいほど命令あたりの処理スピードが優れている。", badge: "重要指標" },
+                { category: "1. CPUの性能指標", name: "MIPS (Million Instructions Per Second)", desc: "1秒間に実行できる命令の数を「百万単位」で表す指標。", note: "MIPS = $10^6$ / (平均命令実行時間［秒］)。", badge: "重要指標" },
+                { category: "2. 高速化技術と並列処理", name: "パイプライン処理", desc: "命令の手順を複数の「ステージ」に分け、それぞれを少しずつずらして重ね合わせ並行処理させる技術。", note: "空き時間を減らし処理効率を劇的に向上。", badge: "重要技術" },
+                { category: "2. 高速化技術と並列処理", name: "スーパースカラ", desc: "パイプライン処理回路（実行ユニット）をCPU内に物理的に複数個搭載し、完全に同時に複数の命令を並行処理させる方式。", note: "物理的な並列処理。", badge: "重要技術" },
+                { category: "2. 高速化技術と並列処理", name: "CISC と RISC", desc: "複雑で高機能な命令をマイクロコードで処理するCISCと、単純で等長な命令をワイヤードロジックで高速処理するRISC。", note: "RISCはパイプライン処理との親和性が極めて高い。", badge: "アーキテクチャ" }
+            ]
+        };
+
+        const defaultQuizQuestions = [
+            { lectureId: "2", question: "企業の基幹業務を支援し、一時的な停止も許されない24時間稼働が求められるシステムは何ですか。", option1: "情報系システム", option2: "基幹系システム", option3: "制御系システム", option4: "基盤系システム", answer: "基幹系システム", explanation: "売上・在庫・会計など企業の生命線となる業務システムは基幹系システムと呼ばれます。" },
+            { lectureId: "2", question: "コンピュータの5大装置において、メモリから命令を取り出し解析し、各部へ制御指示を送る装置はどれですか。", option1: "演算装置", option2: "入力装置", option3: "制御装置", option4: "出力装置", answer: "制御装置", explanation: "制御装置は命令をフェッチ・デコードし、各種パーツに指示（制御信号）を飛ばす司令塔です。" },
+            { lectureId: "2", question: "あらかじめ実行するプログラムを主記憶に展開し、順次読み出しながら実行するノイマン型設計を何と呼びますか。", option1: "直接実行方式", option2: "プログラム内蔵方式", option3: "逐次変換方式", option4: "ハード配線方式", answer: "プログラム内蔵方式", explanation: "プログラム内蔵方式（ストアードプログラム方式）は、処理をするプログラムを実行前に主記憶へロードしておく仕組みです。" },
+            { lectureId: "2", question: "CPU内部のレジスタのうち、「次に実行すべき」命令が入っているメモリアドレスを指すものはどれですか。", option1: "命令レジスタ(IR)", option2: "プログラムカウンタ(PC)", option3: "アキュムレータ(AC)", option4: "インデックスレジスタ", answer: "プログラムカウンタ(PC)", explanation: "プログラムカウンタは次に実行する予定 of 命令のアドレスを指し示し、フェッチ時に自動でインクリメントされます。" },
+            { lectureId: "2", question: "CPUが命令を実行するステップにおいて、取り出した命令コードを「解読」するプロセスは何と呼ばれますか。", option1: "フェッチ", option2: "デコード", option3: "オペランドロード", option4: "ライトバック", answer: "デコード", explanation: "デコード（命令の解読）は、取り出した命令を命令デコーダが解釈して動作指示を切り分けるフェーズです。" },
+            { lectureId: "2", question: "アドレス指定方式において、オペランド部に処理対象となる実データそのものが格納されており、メモリ参照がない方式はどれですか。", option1: "直接アドレス指定", option2: "間接アドレス指定", option3: "即値アドレス指定", option4: "インデックスアドレス指定", answer: "即値アドレス指定", explanation: "即値（そくち）指定方式はオペランドそのものがデータ値なので、メモリアクセスを行わず超高速です。" },
+            { lectureId: "2", question: "オペランド部の値に「インデックスレジスタ」の値を加算して実効アドレス（実際のメモリアドレス）を導く方式は、どの処理に最適ですか。", option1: "プログラム再配置", option2: "配列などの繰り返し処理", option3: "セグメント切り替え", option4: "プログラムカウンタのリセット", answer: "配列などの繰り返し処理", explanation: "インデックスにオフセット値をループごとに増減させるだけで、配列要素へ順番に直接アクセス可能です。" },
+            { lectureId: "2", question: "プログラム先頭番地（ベースレジスタ）を基準に実効アドレスを計算する方式が、最も貢献する機能はどれですか。", option1: "プログラムの再配置（リロケータブル）", option2: "計算処理の並列化", option3: "メモリ内容の不揮発化", option4: "キャッシュメモリのクリア", answer: "プログラムの再配置（リロケータブル）", explanation: "ベースアドレス指定は、メモリ上のどこに展開されても先頭アドレスを代入するだけで動作するため、再配置（リロケータブル）を容易にします。" },
+            { lectureId: "2", question: "主記憶装置（メモリ）と補助記憶装置（HDD/SSD等）を比較した特性として、正しいものはどれですか。", option1: "主記憶は不揮発性で大容量だが、補助記憶より遅い。", option2: "補助記憶は高速で揮発性があり、高価である。", option3: "主記憶はアクセスが高速であるが、電源を切ると中身が消える特性（揮発性）を持つ。", option4: "補助記憶はCPUから直接命令を取り出して一文字ずつ実行される。", answer: "主記憶はアクセスが高速であるが、電源を切ると中身が消える特性（揮発性）を持つ。", explanation: "主記憶（RAM）は高速にCPUと接続されていますが、電源をオフにすると保持データが消失する「揮発性」があります。" },
+            { lectureId: "2", question: "相対アドレス指定方式において、実効アドレスの計算の基準としてオペランド値に加算されるレジスタはどれですか。", option1: "プログラムカウンタ", option2: "インデックスレジスタ", option3: "ベースレジスタ", option4: "アキュムレータ", answer: "プログラムカウンタ", explanation: "相対アドレス指定は、現在の命令実行番地を保持するプログラムカウンタ（PC）の値を基準としてオフセット距離を加算します。" },
+            { lectureId: "3", question: "クロック周波数が2GHz of CPUにおいて、1クロックサイクル（周期）に要する時間は何ナノ秒ですか。", option1: "0.2ナノ秒", option2: "0.5ナノ秒", option3: "2ナノ秒", option4: "5ナノ秒", answer: "0.5ナノ秒", explanation: "1 / 2GHz = 0.5 * 10^-9 秒 = 0.5ナノ秒となります。" }
+        ];
+
+        const LS_KEY_ID = "INFO_SYS_LEARNING_ID";
+        const LS_KEY_LECTURES = "INFO_SYS_LOCAL_LECTURES";
+        const LS_KEY_QUIZ = "INFO_SYS_LOCAL_QUIZZES";
+        const LS_KEY_NOTES = "INFO_SYS_LOCAL_NOTES";
+
+        let learningId = localStorage.getItem(LS_KEY_ID);
+        if (!learningId) {
+            learningId = "LOCAL-" + Math.random().toString(36).substr(2, 6).toUpperCase();
+            localStorage.setItem(LS_KEY_ID, learningId);
+        }
+
+        // 起動初期化
+        window.onload = function() {
+            document.getElementById('sync-id-input').value = learningId;
+            initializeLocalStore();
+            renderLectureSelectors(); // 新設：講義選択 UI群の再構築
+            renderSummaryView();      // 美麗2カラム要約カード描画
+            renderManageQuizzesList();
+            renderManageNotesList();
+            renderManageLecturesList();
+            restartQuiz();
+            
+            // ドラッグ＆ドロップ（クイズ）
+            setupDropZone('quiz-drop-area', handleQuizDrop);
+            // ドラッグ＆ドロップ（カンペ）
+            setupDropZone('notes-drop-area', handleNotesDrop);
+        };
+
+        function initializeLocalStore() {
+            // 講義セッション初期化
+            if (!localStorage.getItem(LS_KEY_LECTURES)) {
+                localStorage.setItem(LS_KEY_LECTURES, JSON.stringify(defaultLectures));
+            }
+            
+            // クイズ問題初期化
+            if (!localStorage.getItem(LS_KEY_QUIZ)) {
+                localStorage.setItem(LS_KEY_QUIZ, JSON.stringify(defaultQuizQuestions));
+            }
+            currentQuizSet = JSON.parse(localStorage.getItem(LS_KEY_QUIZ));
+            document.getElementById('manage-total-count').textContent = currentQuizSet.length;
+
+            // カンペ初期化
+            if (!localStorage.getItem(LS_KEY_NOTES)) {
+                localStorage.setItem(LS_KEY_NOTES, JSON.stringify(defaultSummaries));
+            }
+        }
+
+        // ドラッグ＆ドロップイベント設定
+        function setupDropZone(elementId, handleFunction) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evName => {
+                el.addEventListener(evName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+            });
+            ['dragenter', 'dragover'].forEach(evName => {
+                el.addEventListener(evName, () => el.classList.add('border-blue-500', 'bg-blue-50/10'), false);
+            });
+            ['dragleave', 'drop'].forEach(evName => {
+                el.addEventListener(evName, () => el.classList.remove('border-blue-500', 'bg-blue-50/10'), false);
+            });
+            el.addEventListener('drop', (e) => {
+                const files = e.dataTransfer.files;
+                if (files.length > 0) handleFunction(files[0]);
+            }, false);
+        }
+
+        // --- 講義セレクター動的レンダリング ---
+        function renderLectureSelectors() {
+            const lectures = JSON.parse(localStorage.getItem(LS_KEY_LECTURES)) || defaultLectures;
+
+            // 1. カンペの横スクロールタブ
+            const summaryTabs = document.getElementById('summary-lecture-tabs');
+            if (summaryTabs) {
+                summaryTabs.innerHTML = "";
+                lectures.forEach(l => {
+                    const btn = document.createElement('button');
+                    btn.id = `btn-summary-l-${l.id}`;
+                    btn.onclick = () => switchSummaryLecture(l.id);
+                    btn.className = l.id === currentSummaryLecture 
+                        ? "flex-shrink-0 px-4 py-2 text-xs font-bold rounded-full bg-blue-600 text-white shadow-md shadow-blue-500/20 tab-transition"
+                        : "flex-shrink-0 px-4 py-2 text-xs font-medium rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 tab-transition";
+                    btn.textContent = l.title;
+                    summaryTabs.appendChild(btn);
+                });
+            }
+
+            // 2. クイズ範囲選択フィルター
+            const quizFilters = document.getElementById('quiz-lecture-filter-container');
+            if (quizFilters) {
+                quizFilters.innerHTML = "";
+                // 「すべて」ボタン
+                const allBtn = document.createElement('button');
+                allBtn.onclick = () => switchQuizFilter('all');
+                allBtn.className = activeQuizFilter === 'all'
+                    ? "flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-sm tab-transition"
+                    : "flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 tab-transition";
+                allBtn.textContent = "全範囲からランダム";
+                quizFilters.appendChild(allBtn);
+
+                lectures.forEach(l => {
+                    const btn = document.createElement('button');
+                    btn.onclick = () => switchQuizFilter(l.id);
+                    btn.className = activeQuizFilter === l.id
+                        ? "flex-shrink-0 px-3 py-1.5 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-sm tab-transition"
+                        : "flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 tab-transition";
+                    btn.textContent = l.title.split(":")[0]; // "第2回: ○○" の "第2回" だけ
+                    quizFilters.appendChild(btn);
+                });
+            }
+
+            // 3. 管理画面：インポート先のセレクトボックスの同期
+            const quizSelect = document.getElementById('quiz-import-target-lecture');
+            const formQuizSelect = document.getElementById('form-quiz-lecture-target');
+            const notesSelect = document.getElementById('notes-target-lecture');
+
+            const optionsHTML = lectures.map(l => `<option value="${l.id}">${l.title}</option>`).join('');
+
+            if (quizSelect) quizSelect.innerHTML = optionsHTML;
+            if (formQuizSelect) formQuizSelect.innerHTML = optionsHTML;
+            if (notesSelect) notesSelect.innerHTML = optionsHTML;
+        }
+
+        // --- 画面切り替え制御 ---
+        function switchTab(viewName) {
+            currentView = viewName;
+            document.getElementById('quiz-view').classList.add('hidden');
+            document.getElementById('summary-view').classList.add('hidden');
+            document.getElementById('manage-view').classList.add('hidden');
+            document.getElementById(`${viewName}-view`).classList.remove('hidden');
+
+            const tabs = ['quiz', 'summary', 'manage'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                if (t === viewName) {
+                    btn.className = "tab-transition py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-600 text-slate-800 dark:text-white shadow-sm";
+                } else {
+                    btn.className = "tab-transition py-1.5 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white";
+                }
+            });
+
+            if (viewName === 'summary') {
+                renderLectureSelectors();
+                renderSummaryView();
+            } else if (viewName === 'manage') {
+                renderLectureSelectors();
+            }
+        }
+
+        function switchImportType(type) {
+            activeImportType = type;
+            const btnQuiz = document.getElementById('btn-import-quiz');
+            const btnNotes = document.getElementById('btn-import-notes');
+            const btnLectures = document.getElementById('btn-import-lectures');
+
+            const panelQuiz = document.getElementById('panel-import-quiz');
+            const panelNotes = document.getElementById('panel-import-notes');
+            const panelLectures = document.getElementById('panel-import-lectures');
+
+            panelQuiz.classList.add('hidden');
+            panelNotes.classList.add('hidden');
+            panelLectures.classList.add('hidden');
+
+            btnQuiz.className = "py-1.5 text-[11px] font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white tab-transition";
+            btnNotes.className = "py-1.5 text-[11px] font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white tab-transition";
+            btnLectures.className = "py-1.5 text-[11px] font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white tab-transition";
+
+            if (type === 'quiz') {
+                panelQuiz.classList.remove('hidden');
+                btnQuiz.className = "py-1.5 text-[11px] font-semibold rounded-lg shadow-sm bg-white dark:bg-slate-600 text-slate-800 dark:text-white tab-transition";
+                renderManageQuizzesList();
+            } else if (type === 'notes') {
+                panelNotes.classList.remove('hidden');
+                btnNotes.className = "py-1.5 text-[11px] font-semibold rounded-lg shadow-sm bg-white dark:bg-slate-600 text-slate-800 dark:text-white tab-transition";
+                renderManageNotesList();
+            } else if (type === 'lectures') {
+                panelLectures.classList.remove('hidden');
+                btnLectures.className = "py-1.5 text-[11px] font-semibold rounded-lg shadow-sm bg-white dark:bg-slate-600 text-slate-800 dark:text-white tab-transition";
+                renderManageLecturesList();
+            }
+        }
+    </script>
+
+    <script>
+        // --- クイズ動作ロジック ---
+        function switchQuizFilter(lectureId) {
+            activeQuizFilter = lectureId;
+            const lectures = JSON.parse(localStorage.getItem(LS_KEY_LECTURES)) || defaultLectures;
+            const currentSelected = lectures.find(l => l.id === lectureId);
+            
+            document.getElementById('quiz-filter-label').textContent = currentSelected ? currentSelected.title.split(":")[0] : "全範囲";
+            
+            renderLectureSelectors();
+            restartQuiz();
+        }
+
+        function restartQuiz() {
+            // 講義フィルターを適用
+            if (activeQuizFilter === 'all') {
+                activeQuizSet = [...currentQuizSet];
+            } else {
+                activeQuizSet = currentQuizSet.filter(q => q.lectureId === activeQuizFilter);
+            }
+
+            // 出題数が10問を超える場合はランダムシャッフルして10問に制限
+            if (activeQuizSet.length > 10) {
+                activeQuizSet.sort(() => 0.5 - Math.random());
+                activeQuizSet = activeQuizSet.slice(0, 10);
+            } else {
+                // 件数が少ない場合はそのままシャッフルして出題
+                activeQuizSet.sort(() => 0.5 - Math.random());
+            }
+
+            currentQuestionIdx = 0;
+            score = 0;
+            answeredQuestions = [];
+            
+            document.getElementById('results-panel').classList.add('hidden');
+            document.getElementById('quiz-progress-panel').classList.remove('hidden');
+            document.getElementById('quiz-card').classList.remove('hidden');
+            document.getElementById('feedback-panel').classList.add('hidden');
+            
+            showQuestion();
+        }
+
+        function retryIncorrectQuestions() {
+            const incorrects = answeredQuestions
+                .filter(ans => !ans.userIsCorrect)
+                .map(ans => ans.originalQuestion);
+
+            if (incorrects.length === 0) return;
+
+            activeQuizSet = [...incorrects];
+            currentQuestionIdx = 0;
+            score = 0;
+            answeredQuestions = [];
+
+            document.getElementById('results-panel').classList.add('hidden');
+            document.getElementById('quiz-progress-panel').classList.remove('hidden');
+            document.getElementById('quiz-card').classList.remove('hidden');
+            document.getElementById('feedback-panel').classList.add('hidden');
+
+            showQuestion();
+        }
+
+        function showQuestion() {
+            if (activeQuizSet.length === 0) {
+                document.getElementById('question-text').textContent = "選択された講義範囲のクイズ問題が登録されていません。「問題・講義管理」タブから追加・インポートをしてください。";
+                document.getElementById('options-container').innerHTML = "";
+                document.getElementById('current-question-num').textContent = "0";
+                document.getElementById('total-questions-num').textContent = "0";
+                return;
+            }
+
+            const currentQuestion = activeQuizSet[currentQuestionIdx];
+
+            // 進行インジケーター
+            const progressPercent = (currentQuestionIdx / activeQuizSet.length) * 100;
+            document.getElementById('quiz-progress-bar').style.width = `${progressPercent}%`;
+            document.getElementById('current-question-num').textContent = currentQuestionIdx + 1;
+            document.getElementById('total-questions-num').textContent = activeQuizSet.length;
+            
+            const accuracy = currentQuestionIdx === 0 ? 0 : Math.round((score / currentQuestionIdx) * 100);
+            document.getElementById('current-accuracy').textContent = accuracy;
+
+            // テキスト差し替え
+            document.getElementById('question-text').innerHTML = currentQuestion.question;
+            
+            // カテゴリ表記を「第x回」などにする
+            const lectures = JSON.parse(localStorage.getItem(LS_KEY_LECTURES)) || defaultLectures;
+            const targetLect = lectures.find(l => l.id === currentQuestion.lectureId);
+            document.getElementById('quiz-category-badge').textContent = targetLect ? targetLect.title.split(":")[0] : "一般基礎";
+
+            // 選択肢（存在するもののみシャッフル）
+            const choices = [
+                currentQuestion.option1,
+                currentQuestion.option2,
+                currentQuestion.option3,
+                currentQuestion.option4
+            ].filter(Boolean);
+
+            const shuffledChoices = [...choices].sort(() => 0.5 - Math.random());
+            const optContainer = document.getElementById('options-container');
+            optContainer.innerHTML = "";
+
+            shuffledChoices.forEach(choice => {
+                const btn = document.createElement('button');
+                btn.className = "w-full py-3 px-4 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-medium rounded-2xl border border-slate-150 dark:border-slate-600 shadow-sm transition active:scale-[0.99] text-xs text-left flex items-center justify-between";
+                btn.innerHTML = `
+                    <span>${choice}</span>
+                    <svg class="w-4 h-4 text-slate-300 dark:text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                `;
+                btn.onclick = () => checkAnswer(choice, currentQuestion);
+                optContainer.appendChild(btn);
+            });
+
+            renderMathDisplay();
+        }
+
+        function checkAnswer(selectedChoice, question) {
+            const buttons = document.getElementById('options-container').getElementsByTagName('button');
+            for (let b of buttons) {
+                b.disabled = true;
+            }
+
+            const isCorrect = selectedChoice === question.answer;
+            if (isCorrect) score++;
+
+            answeredQuestions.push({
+                question: question.question,
+                correctAnswer: question.answer,
+                userAnswer: selectedChoice,
+                userIsCorrect: isCorrect,
+                originalQuestion: question
+            });
+
+            const fPanel = document.getElementById('feedback-panel');
+            const fIcon = document.getElementById('feedback-icon');
+            const fTitle = document.getElementById('feedback-title');
+            const fExp = document.getElementById('explanation-text');
+            const nextBtn = document.getElementById('next-btn');
+
+            fPanel.classList.remove('hidden');
+
+            if (isCorrect) {
+                fPanel.className = "fade-in p-5 rounded-2xl border bg-emerald-50/50 border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/50 flex flex-col space-y-3";
+                fIcon.className = "p-1 rounded-full text-white bg-emerald-500";
+                fIcon.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>`;
+                fTitle.className = "text-base font-bold text-emerald-800 dark:text-emerald-400";
+                fTitle.textContent = "正解！";
+            } else {
+                fPanel.className = "fade-in p-5 rounded-2xl border bg-rose-50/50 border-rose-100 dark:bg-rose-950/20 dark:border-rose-900/50 flex flex-col space-y-3";
+                fIcon.className = "p-1 rounded-full text-white bg-rose-500";
+                fIcon.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+                fTitle.className = "text-base font-bold text-rose-800 dark:text-rose-400";
+                fTitle.textContent = `不正解（正解: ${question.answer}）`;
+            }
+
+            fExp.innerHTML = question.explanation;
+
+            if (currentQuestionIdx < activeQuizSet.length - 1) {
+                nextBtn.innerHTML = `<span>次の問題へ</span> <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>`;
+                nextBtn.onclick = () => {
+                    currentQuestionIdx++;
+                    fPanel.classList.add('hidden');
+                    showQuestion();
+                };
+            } else {
+                nextBtn.innerHTML = `<span>クイズ結果を表示</span> <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"></path></svg>`;
+                nextBtn.onclick = showQuizResults;
+            }
+
+            renderMathDisplay();
+        }
+
+        function showQuizResults() {
+            document.getElementById('quiz-progress-panel').classList.add('hidden');
+            document.getElementById('quiz-card').classList.add('hidden');
+            document.getElementById('feedback-panel').classList.add('hidden');
+
+            const resultPanel = document.getElementById('results-panel');
+            resultPanel.classList.remove('hidden');
+
+            document.getElementById('result-score').textContent = score;
+            document.querySelector('.result-total-num').textContent = activeQuizSet.length;
+
+            const accuracy = Math.round((score / activeQuizSet.length) * 100);
+            document.getElementById('result-accuracy').textContent = accuracy;
+
+            const comment = document.getElementById('results-comment');
+            if (accuracy === 100) {
+                comment.textContent = "おめでとうございます！完璧です！全問正解を達成しました。";
+            } else if (accuracy >= 80) {
+                comment.textContent = "素晴らしい正解率です！間違えた項目を振り返り、完全な理解を目指しましょう。";
+            } else if (accuracy >= 50) {
+                comment.textContent = "合格ラインまであと一歩です。間違えた部分を要約カンペで確認してみてください。";
+            } else {
+                comment.textContent = "カンペデータを読み返して、間違えた問題を再挑戦して復習しましょう。";
+            }
+
+            // 間違えた問題リストアップ
+            const reviewSection = document.getElementById('incorrect-review-section');
+            const reviewList = document.getElementById('incorrect-questions-list');
+            const retryBtn = document.getElementById('retry-incorrect-btn');
+
+            const incorrectOnes = answeredQuestions.filter(a => !a.userIsCorrect);
+            if (incorrectOnes.length > 0) {
+                reviewSection.classList.remove('hidden');
+                retryBtn.classList.remove('hidden');
+                reviewList.innerHTML = "";
+
+                incorrectOnes.forEach(item => {
+                    const box = document.createElement('div');
+                    box.className = "p-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/40 rounded-xl text-xxs space-y-1";
+                    box.innerHTML = `
+                        <p class="font-bold text-slate-800 dark:text-white">${item.question}</p>
+                        <p class="text-rose-600 dark:text-rose-400 font-semibold">解答: ${item.userAnswer}</p>
+                        <p class="text-emerald-600 dark:text-emerald-400 font-semibold">正解: ${item.correctAnswer}</p>
+                        <p class="text-slate-400 mt-1 pl-1 border-l border-slate-200 dark:border-slate-700">${item.originalQuestion.explanation}</p>
+                    `;
+                    reviewList.appendChild(box);
+                });
+            } else {
+                reviewSection.classList.add('hidden');
+                retryBtn.classList.add('hidden');
+            }
+
+            renderMathDisplay();
+        }
+    </script>
+
+    <script>
+        // --- カンペ動的表示（スクリーンショットの仕様：キーワード左・内容詳細右） ---
+        function renderSummaryView() {
+            const container = document.getElementById('dynamic-summary-container');
+            if (!container) return;
+            container.innerHTML = "";
+
+            let allNotes = {};
+            try {
+                allNotes = JSON.parse(localStorage.getItem(LS_KEY_NOTES)) || defaultSummaries;
+            } catch(e) {
+                allNotes = defaultSummaries;
+            }
+
+            const currentLectureNotes = allNotes[currentSummaryLecture] || [];
+
+            if (currentLectureNotes.length === 0) {
+                container.innerHTML = `
+                    <p class="text-center text-xs text-slate-400 py-12 bg-white dark:bg-slate-800 rounded-3xl border border-slate-150 dark:border-slate-700">
+                        この講義回の要約データは登録されていません。<br>
+                        「管理」タブからCSV等で登録・ロードしてください。
+                    </p>
+                `;
+                return;
+            }
+
+            // カテゴリ（大項目：例: "1. コンピュータの5大装置"）ごとにグループ化
+            const groups = {};
+            currentLectureNotes.forEach(note => {
+                if (!groups[note.category]) {
+                    groups[note.category] = [];
+                }
+                groups[note.category].push(note);
+            });
+
+            // グループごとにカード（白背景）を生成し、中身を美麗な2カラムにレイアウト
+            Object.keys(groups).forEach(cat => {
+                const groupCard = document.createElement('div');
+                groupCard.className = "bg-white dark:bg-slate-800 rounded-3xl border border-slate-150 dark:border-slate-700 p-5 shadow-sm space-y-4";
+                
+                // バッジ用のテキストを設定（グループ内の最初のアイテムのバッジを採用）
+                const sampleItem = groups[cat][0];
+                const badgeText = sampleItem.badge || "重要知識";
+
+                let html = `
+                    <!-- カードヘッダー -->
+                    <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-3">
+                        <h4 class="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
+                            <span>${cat}</span>
+                        </h4>
+                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400">
+                            ${badgeText}
+                        </span>
+                    </div>
+                    <!-- 2カラムコンテンツ部 -->
+                    <div class="space-y-3.5">
+                `;
+
+                groups[cat].forEach(item => {
+                    html += `
+                        <div class="grid grid-cols-4 gap-3 py-1.5 border-b border-slate-50 dark:border-slate-700/40 last:border-0 last:pb-0">
+                            <!-- 左カラム: 用語（太字） -->
+                            <div class="col-span-1 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-start pt-0.5">
+                                ${item.name}
+                            </div>
+                            <!-- 右カラム: 説明・詳細および補足 -->
+                            <div class="col-span-3 text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                                <p class="leading-relaxed font-normal">${item.desc}</p>
+                                ${item.note ? `<p class="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/5 px-1.5 py-0.5 rounded inline-block">補足: ${item.note}</p>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+                groupCard.innerHTML = html;
+                container.appendChild(groupCard);
+            });
+
+            renderMathDisplay();
+        }
+
+        function switchSummaryLecture(lectureId) {
+            currentSummaryLecture = lectureId;
+            renderLectureSelectors();
+            renderSummaryView();
+        }
+    </script>
+
+    <script>
+        // --- 講義一覧管理用ロジック (新設) ---
+        function renderManageLecturesList() {
+            const container = document.getElementById('manage-lectures-list');
+            if (!container) return;
+            container.innerHTML = "";
+
+            const lectures = JSON.parse(localStorage.getItem(LS_KEY_LECTURES)) || defaultLectures;
+
+            lectures.forEach((l, idx) => {
+                const div = document.createElement('div');
+                div.className = "p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between";
+                div.innerHTML = `
+                    <div class="space-y-0.5">
+                        <span class="text-xxs font-bold text-slate-400">キー: ${l.id}</span>
+                        <p class="text-xs font-bold text-slate-800 dark:text-white">${l.title}</p>
+                    </div>
+                    <!-- 第2回、第3回などのデフォルトシードは削除不可として保護するか、一応削除可能に -->
+                    <button onclick="deleteLecture('${l.id}')" class="text-xxs text-red-500 font-semibold hover:underline">削除</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function createNewLecture() {
+            const id = document.getElementById('form-lecture-id').value.trim();
+            let title = document.getElementById('form-lecture-title').value.trim();
+
+            if (!id || !title) {
+                showCustomModal("入力不備", "講義キー、タイトルは必須入力です。", "warning");
+                return;
+            }
+
+            const lectures = JSON.parse(localStorage.getItem(LS_KEY_LECTURES)) || defaultLectures;
+            
+            // キー重複チェック
+            if (lectures.some(l => l.id === id)) {
+                showCustomModal("重複エラー", "入力された講義キーは既に存在します。別のキーにしてください。", "error");
+                return;
+            }
+
+            // タイトルの体裁を整える
+            if (!title.startsWith("第") && !isNaN(id)) {
+                title = `第${id}回: ${title}`;
+            }
+
+            lectures.push({ id, title });
+            localStorage.setItem(LS_KEY_LECTURES, JSON.stringify(lectures));
+
+            // 入力クリア
+            document.getElementById('form-lecture-id').value = "";
+            document.getElementById('form-lecture-title').value = "";
+
+            showCustomModal("講義の追加完了", `「${title}」を新しく追加登録しました！カンペインポートやクイズの追加先としていつでも選択できます。`, "success");
+            
+            // 状態再読み込み
+            renderLectureSelectors();
+            renderManageLecturesList();
+        }
+
+        function deleteLecture(lectureId) {
+            showCustomModal("講義の削除確認", "この講義を削除すると、紐付いているクイズ問題やカンペの要約データへのアクセスに影響が出ることがあります。削除してよろしいですか？", "warning", () => {
+                let lectures = JSON.parse(localStorage.getItem(LS_KEY_LECTURES)) || defaultLectures;
+                lectures = lectures.filter(l => l.id !== lectureId);
+                localStorage.setItem(LS_KEY_LECTURES, JSON.stringify(lectures));
+
+                // 削除後のカレント設定チェック
+                if (currentSummaryLecture === lectureId) {
+                    currentSummaryLecture = lectures.length > 0 ? lectures[0].id : "";
+                }
+                if (activeQuizFilter === lectureId) {
+                    activeQuizFilter = "all";
+                }
+
+                showCustomModal("削除完了", "講義回をリストから削除しました。", "success");
+
+                renderLectureSelectors();
+                renderManageLecturesList();
+                renderSummaryView();
+                restartQuiz();
+            });
+        }
+
+        // --- 管理用：登録クイズ一覧の描画 ---
+        function renderManageQuizzesList() {
+            const listContainer = document.getElementById('manage-questions-list');
+            if (!listContainer) return;
+            listContainer.innerHTML = "";
+            document.getElementById('manage-total-count').textContent = currentQuizSet.length;
+
+            if (currentQuizSet.length === 0) {
+                listContainer.innerHTML = `<p class="text-center text-xxs text-slate-400 py-4">登録されたクイズはありません。</p>`;
+                return;
+            }
+
+            currentQuizSet.forEach((q, idx) => {
+                const item = document.createElement('div');
+                item.className = "p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl flex items-start justify-between space-x-2";
+                item.innerHTML = `
+                    <div class="space-y-1 flex-1">
+                        <span class="text-xxs font-bold text-blue-500 bg-blue-50 dark:bg-blue-900/30 px-1 py-0.5 rounded">講義ID: ${q.lectureId}</span>
+                        <p class="text-xxs font-semibold text-slate-800 dark:text-white leading-normal pt-1">${q.question}</p>
+                        <p class="text-xxs font-bold text-emerald-600 dark:text-emerald-400">正解: ${q.answer}</p>
+                    </div>
+                    <button onclick="deleteSingleQuiz(${idx})" class="text-xxs text-red-500 font-semibold hover:underline">削除</button>
+                `;
+                listContainer.appendChild(item);
+            });
+            renderMathDisplay();
+        }
+
+        // --- 管理用：カンペプレビュー一覧の描画 ---
+        function renderManageNotesList() {
+            const listContainer = document.getElementById('manage-notes-preview-list');
+            if (!listContainer) return;
+            listContainer.innerHTML = "";
+
+            let allNotes = {};
+            try {
+                allNotes = JSON.parse(localStorage.getItem(LS_KEY_NOTES)) || defaultSummaries;
+            } catch(e) {
+                allNotes = defaultSummaries;
+            }
+
+            const activeLectureNum = document.getElementById('notes-target-lecture').value;
+            const currentLectureNotes = allNotes[activeLectureNum] || [];
+
+            if (currentLectureNotes.length === 0) {
+                listContainer.innerHTML = `<p class="text-center text-xxs text-slate-400 py-4">この講義回に登録されているカンペはありません。</p>`;
+                return;
+            }
+
+            currentLectureNotes.forEach((n, idx) => {
+                const item = document.createElement('div');
+                item.className = "p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl flex items-start justify-between space-x-2";
+                item.innerHTML = `
+                    <div class="space-y-1 flex-1">
+                        <span class="text-xxs font-bold text-slate-400">[${n.category}]</span>
+                        <p class="text-xxs font-bold text-slate-800 dark:text-white">${n.name}</p>
+                        <p class="text-[10px] text-slate-500">${n.desc}</p>
+                    </div>
+                    <button onclick="deleteSingleNote('${activeLectureNum}', ${idx})" class="text-xxs text-red-500 font-semibold hover:underline">削除</button>
+                `;
+                listContainer.appendChild(item);
+            });
+
+            // セレクト変更時にも再描画できるようにイベントバインド
+            document.getElementById('notes-target-lecture').onchange = renderManageNotesList;
+            renderMathDisplay();
+        }
+    </script>
+
+    <script>
+        // --- 汎用CSVパース関数 ---
+        function parseCsvLines(csvText) {
+            const lines = csvText.split(/\r?\n/);
+            const parsedLines = [];
+
+            function splitLine(line) {
+                const result = [];
+                let inQuotes = false;
+                let current = "";
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (char === '"') {
+                        if (inQuotes && line[i+1] === '"') {
+                            current += '"';
+                            i++;
+                        } else {
+                            inQuotes = !inQuotes;
+                        }
+                    } else if (char === ',' && !inQuotes) {
+                        result.push(current.trim());
+                        current = "";
+                    } else {
+                        current += char;
+                    }
+                }
+                result.push(current.trim());
+                return result;
+            }
+
+            for (let i = 0; i < lines.length; i++) {
+                const trimmed = lines[i].trim();
+                if (!trimmed) continue;
+                parsedLines.push(splitLine(trimmed));
+            }
+            return parsedLines;
+        }
+
+        // --- クイズ追加・インポート処理 ---
+        function handleQuizFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) parseAndLoadQuizFile(file);
+        }
+
+        function handleQuizDrop(file) {
+            parseAndLoadQuizFile(file);
+        }
+
+        function parseAndLoadQuizFile(file) {
+            const reader = new FileReader();
+            reader.readAsText(file, 'UTF-8');
+            reader.onload = function(evt) {
+                processQuizCsv(evt.target.result);
+            };
+        }
+
+        function importQuizFromPaste() {
+            const pasteArea = document.getElementById('quiz-csv-paste');
+            const text = pasteArea.value.trim();
+            if (!text) {
+                showCustomModal("入力エラー", "貼り付けエリアが空です。", "error");
+                return;
+            }
+            processQuizCsv(text);
+            pasteArea.value = "";
+        }
+
+        function processQuizCsv(csvContent) {
+            const rows = parseCsvLines(csvContent);
+            if (rows.length <= 1) {
+                showCustomModal("インポートエラー", "ヘッダー行を含み、適切なデータが含まれているか確認してください。", "error");
+                return;
+            }
+
+            const targetLectureId = document.getElementById('quiz-import-target-lecture').value;
+            let importCount = 0;
+            const updatedQuizList = [...currentQuizSet];
+
+            // 1行目はヘッダー
+            for (let i = 1; i < rows.length; i++) {
+                const cols = rows[i];
+                if (cols.length >= 6) {
+                    const question = cols[0];
+                    const opt1 = cols[1];
+                    const opt2 = cols[2];
+                    const opt3 = cols[3] || "";
+                    const opt4 = cols[4] || "";
+                    const answer = cols[5];
+                    const explanation = cols[6] || "解説はありません。";
+
+                    if (question && opt1 && opt2 && answer) {
+                        updatedQuizList.push({
+                            lectureId: targetLectureId,
+                            question,
+                            option1: opt1,
+                            option2: opt2,
+                            option3: opt3,
+                            option4: opt4,
+                            answer,
+                            explanation
+                        });
+                        importCount++;
+                    }
+                }
+            }
+
+            if (importCount > 0) {
+                currentQuizSet = updatedQuizList;
+                localStorage.setItem(LS_KEY_QUIZ, JSON.stringify(currentQuizSet));
+                renderManageQuizzesList();
+                showCustomModal("完了", `${importCount}件のクイズ問題を講義回「${targetLectureId}」に読み込みました！`, "success");
+            } else {
+                showCustomModal("パースエラー", "有効なCSVレコードをパースできませんでした。", "error");
+            }
+        }
+
+        // --- カンペ登録・インポート処理 ---
+        function handleNotesFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) parseAndLoadNotesFile(file);
+        }
+
+        function handleNotesDrop(file) {
+            parseAndLoadNotesFile(file);
+        }
+
+        function parseAndLoadNotesFile(file) {
+            const reader = new FileReader();
+            reader.readAsText(file, 'UTF-8');
+            reader.onload = function(evt) {
+                processNotesCsv(evt.target.result);
+            };
+        }
+
+        function importNotesFromPaste() {
+            const pasteArea = document.getElementById('notes-csv-paste');
+            const text = pasteArea.value.trim();
+            if (!text) {
+                showCustomModal("入力エラー", "直貼りエリアが空です。", "error");
+                return;
+            }
+            processNotesCsv(text);
+            pasteArea.value = "";
+        }
+
+        function processNotesCsv(csvContent) {
+            const rows = parseCsvLines(csvContent);
+            if (rows.length <= 1) {
+                showCustomModal("インポートエラー", "ヘッダー行以下にデータが含まれているか確認してください。", "error");
+                return;
+            }
+
+            const targetLecture = document.getElementById('notes-target-lecture').value;
+            let importCount = 0;
+            const newLectureNotes = [];
+
+            for (let i = 1; i < rows.length; i++) {
+                const cols = rows[i];
+                if (cols.length >= 3) {
+                    const category = cols[0];
+                    const name = cols[1];
+                    const desc = cols[2];
+                    const note = cols[3] || "";
+                    const badge = cols[4] || "重要";
+
+                    if (category && name && desc) {
+                        newLectureNotes.push({ category, name, desc, note, badge });
+                        importCount++;
+                    }
+                }
+            }
+
+            if (importCount > 0) {
+                let allNotes = {};
+                try {
+                    allNotes = JSON.parse(localStorage.getItem(LS_KEY_NOTES)) || {};
+                } catch(e) {
+                    allNotes = {};
+                }
+
+                allNotes[targetLecture] = newLectureNotes;
+                localStorage.setItem(LS_KEY_NOTES, JSON.stringify(allNotes));
+                
+                renderManageNotesList();
+                renderSummaryView();
+                showCustomModal("更新成功", `第${targetLecture}回のカンペデータとして${importCount}件を丸ごと上書きアップデートしました！`, "success");
+            } else {
+                showCustomModal("形式エラー", "分類, 項目名, 詳細な説明のヘッダーおよびデータ列を確認してください。", "error");
+            }
+        }
+
+        // 手動追加（クイズ）
+        function addSingleQuestion() {
+            const targetLectureId = document.getElementById('form-quiz-lecture-target').value;
+            const q = document.getElementById('form-question').value.trim();
+            const o1 = document.getElementById('form-opt1').value.trim();
+            const o2 = document.getElementById('form-opt2').value.trim();
+            const o3 = document.getElementById('form-opt3').value.trim();
+            const o4 = document.getElementById('form-opt4').value.trim();
+            const correct = document.getElementById('form-correct').value.trim();
+            const exp = document.getElementById('form-explanation').value.trim();
+
+            if (!q || !o1 || !o2 || !correct) {
+                showCustomModal("不備", "問題、選択肢1、選択肢2、正解は必須です。", "warning");
+                return;
+            }
+
+            const choices = [o1, o2, o3, o4].filter(Boolean);
+            if (!choices.includes(correct)) {
+                showCustomModal("整合性エラー", "入力された「正解（文字列）」は、登録した選択肢のいずれかと完全一致させる必要があります。", "error");
+                return;
+            }
+
+            const newQ = {
+                lectureId: targetLectureId,
+                question: q,
+                option1: o1,
+                option2: o2,
+                option3: o3,
+                option4: o4,
+                answer: correct,
+                explanation: exp || "解説はありません。"
+            };
+
+            currentQuizSet.push(newQ);
+            localStorage.setItem(LS_KEY_QUIZ, JSON.stringify(currentQuizSet));
+
+            // クリア
+            document.getElementById('form-question').value = "";
+            document.getElementById('form-opt1').value = "";
+            document.getElementById('form-opt2').value = "";
+            document.getElementById('form-opt3').value = "";
+            document.getElementById('form-opt4').value = "";
+            document.getElementById('form-correct').value = "";
+            document.getElementById('form-explanation').value = "";
+
+            renderManageQuizzesList();
+            showCustomModal("追加完了", "新しくクイズ問題を1件追加しました。", "success");
+        }
+
+        // 個別削除（クイズ）
+        function deleteSingleQuiz(idx) {
+            currentQuizSet.splice(idx, 1);
+            localStorage.setItem(LS_KEY_QUIZ, JSON.stringify(currentQuizSet));
+            renderManageQuizzesList();
+        }
+
+        // 個別削除（カンペ）
+        function deleteSingleNote(lectureKey, idx) {
+            let allNotes = {};
+            try {
+                allNotes = JSON.parse(localStorage.getItem(LS_KEY_NOTES)) || {};
+            } catch(e) {
+                allNotes = {};
+            }
+
+            if (allNotes[lectureKey]) {
+                allNotes[lectureKey].splice(idx, 1);
+                localStorage.setItem(LS_KEY_NOTES, JSON.stringify(allNotes));
+                renderManageNotesList();
+                renderSummaryView();
+            }
+        }
+
+        // クイズ全削除
+        function confirmClearAllQuizzes() {
+            showCustomModal("全件削除の確認", "本当にクイズ問題を全て削除してよろしいですか？", "warning", () => {
+                currentQuizSet = [];
+                localStorage.setItem(LS_KEY_QUIZ, JSON.stringify(currentQuizSet));
+                renderManageQuizzesList();
+                showCustomModal("削除完了", "すべてのクイズ問題をクリアしました。", "success");
+            });
+        }
+
+        // カンペの全クリア（標準に戻す）
+        function confirmResetAllNotes() {
+            showCustomModal("リセットの確認", "要約カンペデータを標準状態に戻しますか？（自身で追加した講義用カンペもリセットされます）", "warning", () => {
+                localStorage.setItem(LS_KEY_NOTES, JSON.stringify(defaultSummaries));
+                renderManageNotesList();
+                renderSummaryView();
+                showCustomModal("完了", "カンペデータを標準初期値にリセットしました。", "success");
+            });
+        }
+    </script>
+
+    <script>
+        // --- BOM付きCSVダウンロード補助 ---
+        function executeCsvDownload(filename, csvContent) {
+            const bom = new Uint8Array([0xEF, 0xBB, 0xBF]); // Excelでの文字化け防止用BOM
+            const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.setAttribute('download', filename);
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+        }
+
+        // サンプルクイズエクスポート
+        function exportDefaultQuizQuestions() {
+            let csv = "問題文,選択肢1,選択肢2,選択肢3,選択肢4,正解(選択肢と完全一致),解説\n";
+            const combined = [...defaultQuizQuestions];
+            combined.forEach(q => {
+                csv += `"${q.question.replace(/"/g, '""')}","${q.option1.replace(/"/g, '""')}","${q.option2.replace(/"/g, '""')}","${(q.option3 || "").replace(/"/g, '""')}","${(q.option4 || "").replace(/"/g, '""')}","${q.answer.replace(/"/g, '""')}","${q.explanation.replace(/"/g, '""')}"\n`;
+            });
+            executeCsvDownload("default_quiz_questions.csv", csv);
+        }
+
+        // 第2回 カンペエクスポート
+        function exportLecture2DefaultNotes() {
+            let csv = "分類,項目名,詳細な説明,特徴・補足,バッジ\n";
+            defaultSummaries["2"].forEach(item => {
+                csv += `"${item.category.replace(/"/g, '""')}","${item.name.replace(/"/g, '""')}","${item.desc.replace(/"/g, '""')}","${item.note.replace(/"/g, '""')}","${(item.badge || "重要").replace(/"/g, '""')}"\n`;
+            });
+            executeCsvDownload("lecture_2_summary_notes.csv", csv);
+        }
+
+        // 第3回 カンペエクスポート
+        function exportLecture3DefaultNotes() {
+            let csv = "分類,項目名,詳細な説明,特徴・補足,バッジ\n";
+            defaultSummaries["3"].forEach(item => {
+                csv += `"${item.category.replace(/"/g, '""')}","${item.name.replace(/"/g, '""')}","${item.desc.replace(/"/g, '""')}","${item.note.replace(/"/g, '""')}","${(item.badge || "重要").replace(/"/g, '""')}"\n`;
+            });
+            executeCsvDownload("lecture_3_summary_notes.csv", csv);
+        }
+
+        // クリップボードコピー
+        function copySyncId() {
+            const input = document.getElementById('sync-id-input');
+            input.select();
+            document.execCommand('copy');
+            showCustomModal("コピー成功", "識別用IDをクリップボードにコピーしました！", "success");
+        }
+
+        // KaTeX数式表示
+        function renderMathDisplay() {
+            try {
+                if (typeof katex !== 'undefined') {
+                    const mathElements = document.getElementsByClassName('math');
+                    for (let m of mathElements) {
+                        katex.render(m.textContent, m, {
+                            throwOnError: false,
+                            displayMode: false
+                        });
+                    }
+                    
+                    // 動的描画されたテキスト内の数式タグも個別にKaTeXに変換
+                    const containers = [document.getElementById('dynamic-summary-container'), document.getElementById('question-text'), document.getElementById('explanation-text')];
+                    containers.forEach(container => {
+                        if (container) {
+                            // 正規表現で $数式$ を探して置き換える
+                            let html = container.innerHTML;
+                            const regex = /\$([^\$]+)\$/g;
+                            let match;
+                            let hasMatches = false;
+                            while ((match = regex.exec(html)) !== null) {
+                                hasMatches = true;
+                                try {
+                                    const rendered = katex.renderToString(match[1], { throwOnError: false });
+                                    html = html.replace(match[0], rendered);
+                                } catch (e) {
+                                    console.error(e);
+                                }
+                            }
+                            if (hasMatches) {
+                                container.innerHTML = html;
+                            }
+                        }
+                    });
+                }
+            } catch(e) {
+                console.error("KaTeX failed to render: ", e);
+            }
+        }
+
+        // --- 独自モーダル（ダイアログ）関数 ---
+        function showCustomModal(title, msg, iconType = 'info', confirmCallback = null) {
+            const modal = document.getElementById('custom-modal');
+            const iconContainer = document.getElementById('modal-icon-container');
+            const iconSvg = document.getElementById('modal-icon');
+            const mTitle = document.getElementById('modal-title');
+            const mMessage = document.getElementById('modal-message');
+            const mActions = document.getElementById('modal-actions');
+
+            mTitle.textContent = title;
+            mMessage.textContent = msg;
+            mActions.innerHTML = "";
+
+            if (iconType === 'success') {
+                iconContainer.className = "mx-auto inline-flex p-3 rounded-full text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20";
+                iconSvg.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>`;
+            } else if (iconType === 'error') {
+                iconContainer.className = "mx-auto inline-flex p-3 rounded-full text-rose-600 bg-rose-50 dark:bg-rose-950/20";
+                iconSvg.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>`;
+            } else if (iconType === 'warning') {
+                iconContainer.className = "mx-auto inline-flex p-3 rounded-full text-amber-600 bg-amber-50 dark:bg-amber-950/20";
+                iconSvg.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>`;
+            } else {
+                iconContainer.className = "mx-auto inline-flex p-3 rounded-full text-blue-600 bg-blue-50 dark:bg-blue-950/20";
+                iconSvg.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>`;
+            }
+
+            if (confirmCallback) {
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = "flex-1 py-2 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl transition";
+                cancelBtn.textContent = "キャンセル";
+                cancelBtn.onclick = () => { modal.classList.add('hidden'); };
+
+                const confirmBtn = document.createElement('button');
+                confirmBtn.className = "flex-1 py-2 px-4 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded-xl transition";
+                confirmBtn.textContent = "実行";
+                confirmBtn.onclick = () => {
+                    confirmCallback();
+                    modal.classList.add('hidden');
+                };
+
+                mActions.appendChild(cancelBtn);
+                mActions.appendChild(confirmBtn);
+            } else {
+                const okBtn = document.createElement('button');
+                okBtn.className = "w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white text-xs font-semibold rounded-xl transition";
+                okBtn.textContent = "閉じる";
+                okBtn.onclick = () => { modal.classList.add('hidden'); };
+                mActions.appendChild(okBtn);
+            }
+
+            modal.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
