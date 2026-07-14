@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="ja" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>情報システム基礎 クイズ＆要約＆管理マスター</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'media',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans JP', 'sans-serif'],
+                    },
+                    fontSize: {
+                        'xxs': '0.65rem',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+        .progress-bar-transition {
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* スムーズなトランジション */
+        .tab-transition {
+            transition: all 0.2s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 h-full flex flex-col font-sans transition-colors duration-200">
+
+    <!-- ヘッダー -->
+    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40 transition-colors">
+        <div class="max-w-md mx-auto px-4 py-3 flex flex-col space-y-2">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <div class="bg-blue-600 text-white p-2 rounded-xl shadow-md shadow-blue-500/20">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    </div>
+                    <div>
+                        <h1 class="text-sm font-bold tracking-tight text-slate-800 dark:text-white">情報システム基礎</h1>
+                        <p class="text-xxs text-slate-500 dark:text-slate-400">第2回 コンピュータシステム構成</p>
+                    </div>
+                </div>
+                <!-- 同期中・保存ステータスインジケーター -->
+                <div id="sync-indicator" class="flex items-center space-x-1 bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full text-xxs font-medium text-slate-500 dark:text-slate-400">
+                    <span class="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span>
+                    <span id="sync-status-text">接続中...</span>
+                </div>
+            </div>
+
+            <!-- モード切り替えタブ（3つのタブ） -->
+            <div class="grid grid-cols-3 bg-slate-100 dark:bg-slate-700 p-1 rounded-xl gap-1">
+                <button id="tab-quiz" onclick="switchTab('quiz')" class="tab-transition py-1.5 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">
+                    クイズ
+                </button>
+                <button id="tab-summary" onclick="switchTab('summary')" class="tab-transition py-1.5 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">
+                    要約カンペ
+                </button>
+                <button id="tab-manage" onclick="switchTab('manage')" class="tab-transition py-1.5 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">
+                    問題管理
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="flex-1 overflow-y-auto w-full max-w-md mx-auto px-4 py-4 pb-12">
+
+        <!-- ==================== クイズタブ ==================== -->
+        <div id="quiz-view" class="fade-in space-y-4">
+            
+            <!-- クイズ進行状況パネル -->
+            <div id="quiz-progress-panel" class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-150 dark:border-slate-700 shadow-sm space-y-3">
+                <div class="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+                    <span class="font-medium">問題 <span id="current-question-num" class="text-lg font-bold text-blue-600 dark:text-blue-400">0</span> / <span id="total-questions-num">0</span></span>
+                    <span class="font-medium bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full">正答率: <span id="current-accuracy">0</span>%</span>
+                </div>
+                <!-- プログレスバー -->
+                <div class="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                    <div id="quiz-progress-bar" class="bg-blue-600 h-full rounded-full progress-bar-transition" style="width: 0%;"></div>
+                </div>
+            </div>
+
+            <!-- クイズ本体カード -->
+            <div id="quiz-card" class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-150 dark:border-slate-700 shadow-md overflow-hidden min-h-[300px] flex flex-col justify-between">
+                
+                <!-- 問題テキスト -->
+                <div class="p-6 flex-1 space-y-4">
+                    <div id="quiz-category-badge" class="inline-flex bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-lg text-xs font-semibold">
+                        IT基礎知識 ＆ 原理
+                    </div>
+                    <p id="question-text" class="text-base font-bold text-slate-800 dark:text-white leading-relaxed">
+                        問題をロード中、または問題が登録されていません...
+                    </p>
+                </div>
+
+                <!-- 選択肢ボタン群 -->
+                <div id="options-container" class="p-4 bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-150 dark:border-slate-700 space-y-2.5">
+                    <!-- JavaScriptでボタンが動的に挿入されます -->
+                </div>
+            </div>
+
+            <!-- フィードバック ＆ 解説エリア -->
+            <div id="feedback-panel" class="hidden fade-in p-5 rounded-2xl border flex flex-col space-y-3">
+                <div class="flex items-center space-x-2.5">
+                    <div id="feedback-icon" class="p-1 rounded-full text-white">
+                        <!-- SVGアイコンが入る -->
+                    </div>
+                    <span id="feedback-title" class="text-base font-bold">正解 / 不正解</span>
+                </div>
+                <p id="explanation-text" class="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                    ここに解説文が入ります。
+                </p>
+                <button id="next-btn" class="mt-2 w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-semibold rounded-xl shadow-lg transition duration-200 text-sm flex items-center justify-center space-x-1">
+                    <span>次の問題へ</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </button>
+            </div>
+
+            <!-- 結果画面 -->
+            <div id="results-panel" class="hidden fade-in bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-150 dark:border-slate-700 shadow-lg text-center space-y-6">
+                <div class="space-y-2">
+                    <div class="inline-flex p-4 bg-blue-50 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
+                        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-slate-800 dark:text-white">学習完了！</h2>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">お疲れ様でした。今回の成果はこちらです。</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-2xl">
+                        <span class="text-xs text-slate-500 dark:text-slate-400 block mb-1">スコア</span>
+                        <span class="text-2xl font-bold text-slate-800 dark:text-white"><span id="result-score">0</span> / <span class="result-total-num">10</span></span>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-2xl">
+                        <span class="text-xs text-slate-500 dark:text-slate-400 block mb-1">正解率</span>
+                        <span class="text-2xl font-bold text-blue-600 dark:text-blue-400"><span id="result-accuracy">0</span>%</span>
+                    </div>
+                </div>
+
+                <div id="results-comment" class="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-xl text-sm font-medium leading-relaxed">
+                    素晴らしいですね！要点がしっかり身についています。
+                </div>
+
+                <!-- 復習セクション -->
+                <div id="incorrect-review-section" class="text-left space-y-3 hidden">
+                    <h3 class="text-xs font-bold text-slate-400 tracking-wider uppercase">要チェックな間違えた問題</h3>
+                    <div id="incorrect-questions-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        <!-- 動的に間違えた問題をリスト化 -->
+                    </div>
+                </div>
+
+                <div class="flex flex-col space-y-2 pt-2 sm:flex-row sm:space-y-0 sm:space-x-2">
+                    <button onclick="restartQuiz()" class="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs transition shadow-lg shadow-blue-500/25">
+                        もう一度挑戦
+                    </button>
+                    <button id="retry-incorrect-btn" onclick="retryIncorrectQuestions()" class="flex-1 py-3 px-4 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-xl text-xs transition shadow-lg shadow-amber-500/25 hidden">
+                        間違えた問題に再挑戦
+                    </button>
+                    <button onclick="switchTab('summary')" class="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-xs transition">
+                        カンペで復習
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ==================== 要約カンペタブ ==================== -->
+        <div id="summary-view" class="hidden fade-in space-y-5">
+            
+            <div class="p-4 bg-blue-50 dark:bg-blue-950/40 rounded-2xl border border-blue-100 dark:border-blue-900/50 flex items-start space-x-3">
+                <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div class="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+                    <strong class="font-bold block mb-0.5">講義のキーポイントまとめ</strong>
+                    この要約カードを事前に読むか、クイズ中に行き詰まったらここで仕様を確認しましょう。
+                </div>
+            </div>
+
+            <!-- アコーディオン1: 5大装置 -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-150 dark:border-slate-700 overflow-hidden shadow-sm">
+                <div class="p-4 bg-slate-50 dark:bg-slate-700/40 font-bold text-sm text-slate-800 dark:text-white flex justify-between items-center">
+                    <span>1. コンピュータの5大装置</span>
+                    <span class="text-xs text-slate-400 font-normal">ITパスポート頻出</span>
+                </div>
+                <div class="p-4 space-y-3.5 text-xs text-slate-600 dark:text-slate-300">
+                    <div class="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-700 pb-2">
+                        <span class="font-bold text-slate-800 dark:text-slate-200">制御装置</span>
+                        <span class="col-span-2">プログラムの命令を取り出し（フェッチ）、解読し各装置をコントロールする。</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-700 pb-2">
+                        <span class="font-bold text-slate-800 dark:text-slate-200">演算装置</span>
+                        <span class="col-span-2">四則演算や論理演算を実務。算術論理演算装置（ALU）と呼ばれる。</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-700 pb-2">
+                        <span class="font-bold text-slate-800 dark:text-slate-200">記憶装置</span>
+                        <span class="col-span-2">
+                            <strong class="text-slate-800 dark:text-slate-200">主記憶</strong>（電源切ると消える・極めて高速、メモリ等）と、<strong class="text-slate-800 dark:text-slate-200">補助記憶</strong>（電源切っても消えない、SSD/HDD等）に大別。
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-700 pb-2">
+                        <span class="font-bold text-slate-800 dark:text-slate-200">入力・出力</span>
+                        <span class="col-span-2">外部から情報を取り込む（マウス・キー）と、処理結果を出力する（ディスプレイ・印刷）機器。</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- アコーディオン2: レジスタと実行サイクル -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-150 dark:border-slate-700 overflow-hidden shadow-sm">
+                <div class="p-4 bg-slate-50 dark:bg-slate-700/40 font-bold text-sm text-slate-800 dark:text-white flex justify-between items-center">
+                    <span>2. CPU内の主要レジスタ & サイクル</span>
+                    <span class="text-xs text-blue-600 dark:text-blue-400 font-semibold">応用情報級</span>
+                </div>
+                <div class="p-4 space-y-3.5 text-xs text-slate-600 dark:text-slate-300">
+                    <div class="space-y-1">
+                        <div class="flex justify-between font-bold text-slate-800 dark:text-slate-200">
+                            <span>プログラムカウンタ (PC)</span>
+                            <span class="text-xxs bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 rounded">最重要</span>
+                        </div>
+                        <p class="pl-2 border-l-2 border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400">次に実行する命令が入っている主記憶上のアドレスを指す。</p>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between font-bold text-slate-800 dark:text-slate-200">
+                            <span>命令レジスタ (IR) / デコーダ</span>
+                        </div>
+                        <p class="pl-2 border-l-2 border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400">取り出した命令そのものを記憶する（IR）。それを解読して命令デコーダが指示を出す。</p>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between font-bold text-slate-800 dark:text-slate-200">
+                            <span>アキュムレータ</span>
+                        </div>
+                        <p class="pl-2 border-l-2 border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400">演算の対象となるデータや演算結果を一時的に記憶する。</p>
+                    </div>
+                    <div class="pt-2 border-t border-slate-100 dark:border-slate-700">
+                        <span class="font-bold text-slate-800 dark:text-slate-200 block mb-1">命令実行の4段階サイクル</span>
+                        <ol class="list-decimal pl-4 space-y-1 text-slate-500 dark:text-slate-400">
+                            <li><strong>フェッチ (Fetch)</strong>: PCをもとに命令を取り出す。</li>
+                            <li><strong>デコード (Decode)</strong>: 命令コードを解読する。</li>
+                            <li><strong>オペランド読出し</strong>: メモリアドレス等の処理対象をロードする。</li>
+                            <li><strong>命令実行</strong>: ALUが計算し、レジスタやメモリに書き戻す。</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <!-- アコーディオン3: アドレス指定方式 -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-150 dark:border-slate-700 overflow-hidden shadow-sm">
+                <div class="p-4 bg-slate-50 dark:bg-slate-700/40 font-bold text-sm text-slate-800 dark:text-white flex justify-between items-center">
+                    <span>3. 機械語のアドレス指定方式</span>
+                    <span class="text-xs text-slate-400 font-normal">差がつくポイント</span>
+                </div>
+                <div class="p-4 space-y-3.5 text-xs text-slate-600 dark:text-slate-300">
+                    <div class="space-y-1">
+                        <span class="font-bold text-slate-800 dark:text-slate-200 block">① 即値アドレス指定方式</span>
+                        <p class="text-slate-500 dark:text-slate-400">オペランド部（アドレス部）に、データそのものが入っている。メモリアクセスが発生しないため最速。</p>
+                    </div>
+                    <div class="space-y-1">
+                        <span class="font-bold text-slate-800 dark:text-slate-200 block">② 直接アドレス指定方式</span>
+                        <p class="text-slate-500 dark:text-slate-400">オペランド部の値がそのまま実効アドレスを指す方式。</p>
+                    </div>
+                    <div class="space-y-1">
+                        <span class="font-bold text-slate-800 dark:text-slate-200 block">③ 間接アドレス指定方式</span>
+                        <p class="text-slate-500 dark:text-slate-400">オペランド部に、別の番地を示すアドレスが格納されており、複数回経由してデータを取り出す方式。</p>
+                    </div>
+                    <div class="space-y-1">
+                        <span class="font-bold text-slate-800 dark:text-slate-200 block">④ インデックス(指標)アドレス指定方式</span>
+                        <p class="text-slate-500 dark:text-slate-400">オペランド値 ＋ インデックスレジスタの値 ＝ 実効アドレスとする方式。<strong>配列やループ処理</strong>に適している。</p>
+                    </div>
+                    <div class="space-y-1">
+                        <span class="font-bold text-slate-800 dark:text-slate-200 block">⑤ ベースアドレス指定方式</span>
+                        <p class="text-slate-500 dark:text-slate-400">オペランド値 ＋ ベースレジスタ（プログラム先頭アドレス）の値 ＝ 実効アドレス。<strong>プログラムの再配置（リロケータブル）</strong>を容易にする。</p>
+                    </div>
+                    <div class="space-y-1">
+                        <span class="font-bold text-slate-800 dark:text-slate-200 block">⑥ 相対アドレス指定方式</span>
+                        <p class="text-slate-500 dark:text-slate-400">オペランド値 ＋ プログラムカウンタの値 ＝ 実効アドレス。</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ==================== 問題管理・インポートタブ ==================== -->
+        <div id="manage-view" class="hidden fade-in space-y-6">
+            
+            <!-- 同期アカウント情報 -->
+            <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-150 dark:border-slate-700 shadow-sm space-y-2">
+                <span class="text-xxs font-bold text-blue-600 dark:text-blue-400 tracking-wider uppercase">アカウント同期ステータス</span>
+                <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                    作成した問題は、クラウドデータベースに自動保存され、以下の学習IDに紐付けられます。
+                </p>
+                <div class="bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-850 flex items-center justify-between mt-2 overflow-hidden">
+                    <span class="text-xxs font-mono text-slate-500 truncate mr-2" id="display-user-id">取得中...</span>
+                    <button onclick="copyUserId()" class="flex-shrink-0 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750 px-2.5 py-1 rounded-lg text-xxs font-semibold shadow-sm transition">
+                        IDをコピー
+                    </button>
+                </div>
+            </div>
+
+            <!-- CSVインポート・エクスポートカード -->
+            <div class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-150 dark:border-slate-700 overflow-hidden shadow-sm">
+                <div class="p-5 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-850 flex justify-between items-center">
+                    <div>
+                        <h3 class="font-bold text-sm text-slate-800 dark:text-white border-0 pb-0 m-0">CSVデータ管理</h3>
+                        <p class="text-xxs text-slate-500 dark:text-slate-400">問題のインポートおよびエクスポートが可能です。</p>
+                    </div>
+                    <button onclick="downloadCSVTemplate()" class="text-xxs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                        見本を保存
+                    </button>
+                </div>
+                
+                <div class="p-5 space-y-4">
+                    <!-- ドラッグ＆ドロップ兼ファイルインプット -->
+                    <label id="csv-dropzone" class="border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-400 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition bg-slate-50/50 dark:bg-slate-900/30 text-center">
+                        <svg class="w-8 h-8 text-slate-400 dark:text-slate-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        <span class="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-0.5">CSVファイルを選択するかドロップ</span>
+                        <span class="text-xxs text-slate-400 dark:text-slate-500">拡張子: .csv | 文字コード: UTF-8</span>
+                        <input type="file" id="csv-file-input" class="hidden" accept=".csv" onchange="handleFileSelect(event)">
+                    </label>
+
+                    <!-- CSVテキスト手動コピペ欄 (トグル形式) -->
+                    <details class="group bg-slate-50 dark:bg-slate-850 rounded-xl p-3 border border-slate-100 dark:border-slate-750">
+                        <summary class="list-none flex justify-between items-center font-semibold text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+                            <span>または、CSVのテキストをコピペして追加</span>
+                            <span class="text-xxs text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                        </summary>
+                        <div class="mt-3 space-y-2.5">
+                            <textarea id="csv-text-paste" placeholder="問題文,選択肢1,選択肢2,選択肢3,選択肢4,正解(選択肢と完全一致),解説&#10;例：&#10;コンピュータの演算を行う装置は？,制御装置,演算装置,記憶装置,入力装置,演算装置,演算装置が計算を行います。" rows="4" class="w-full text-xs font-mono p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl focus:ring-1 focus:ring-blue-500 focus:outline-none dark:text-slate-100"></textarea>
+                            <button onclick="importFromPaste()" class="w-full py-2 px-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg text-xs transition">
+                                テキストから取り込み
+                            </button>
+                        </div>
+                    </details>
+
+                    <!-- エクスポート機能セクション -->
+                    <div class="pt-4 border-t border-slate-100 dark:border-slate-700 space-y-2">
+                        <span class="text-xxs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">講義コンテンツのエクスポート</span>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="exportDefaultQuestions()" class="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-semibold rounded-xl text-xs transition flex items-center justify-center space-x-1.5 shadow-sm">
+                                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                <span>初期問題(10問)</span>
+                            </button>
+                            <button onclick="exportSummaryNotes()" class="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-semibold rounded-xl text-xs transition flex items-center justify-center space-x-1.5 shadow-sm">
+                                <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                <span>要約カンペ(CSV)</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 個別手動登録フォーム -->
+            <div class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-150 dark:border-slate-700 overflow-hidden shadow-sm">
+                <details class="group">
+                    <summary class="list-none p-5 bg-slate-50 dark:bg-slate-850 flex justify-between items-center cursor-pointer select-none">
+                        <div>
+                            <h3 class="font-bold text-sm text-slate-800 dark:text-white border-0 pb-0 m-0">1問ずつ手動で新規作成</h3>
+                            <p class="text-xxs text-slate-500 dark:text-slate-400">スマホから手入力で登録します。</p>
+                        </div>
+                        <span class="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div class="p-5 border-t border-slate-100 dark:border-slate-750 space-y-3.5 text-xs">
+                        <!-- 問題文 -->
+                        <div class="space-y-1">
+                            <label class="block font-bold text-slate-700 dark:text-slate-300">問題文</label>
+                            <textarea id="manual-question" rows="2" class="w-full p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl focus:ring-1 focus:ring-blue-500 focus:outline-none" placeholder="問題文を入力してください"></textarea>
+                        </div>
+                        <!-- 4択 -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="space-y-1">
+                                <label class="block font-medium text-slate-500 dark:text-slate-400">選択肢1</label>
+                                <input id="manual-opt1" type="text" class="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl" placeholder="選択肢1">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="block font-medium text-slate-500 dark:text-slate-400">選択肢2</label>
+                                <input id="manual-opt2" type="text" class="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl" placeholder="選択肢2">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="block font-medium text-slate-500 dark:text-slate-400">選択肢3</label>
+                                <input id="manual-opt3" type="text" class="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl" placeholder="選択肢3">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="block font-medium text-slate-500 dark:text-slate-400">選択肢4</label>
+                                <input id="manual-opt4" type="text" class="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl" placeholder="選択肢4">
+                            </div>
+                        </div>
+                        <!-- 正解の指定 -->
+                        <div class="space-y-1">
+                            <label class="block font-bold text-slate-700 dark:text-slate-300">正解の答え</label>
+                            <select id="manual-answer" class="w-full p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl focus:outline-none">
+                                <option value="">以下から正解を選んでください</option>
+                                <option value="1">選択肢1の値</option>
+                                <option value="2">選択肢2の値</option>
+                                <option value="3">選択肢3の値</option>
+                                <option value="4">選択肢4の値</option>
+                            </select>
+                        </div>
+                        <!-- 解説 -->
+                        <div class="space-y-1">
+                            <label class="block font-bold text-slate-700 dark:text-slate-300">解説文</label>
+                            <textarea id="manual-explanation" rows="2" class="w-full p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl focus:ring-1 focus:ring-blue-500 focus:outline-none" placeholder="解説を入力してください"></textarea>
+                        </div>
+
+                        <button onclick="submitManualQuestion()" class="w-full py-3 bg-slate-800 dark:bg-blue-600 hover:opacity-90 text-white font-bold rounded-xl transition shadow-md">
+                            問題を登録して保存
+                        </button>
+                    </div>
+                </details>
+            </div>
+
+            <!-- 追加した問題のリスト -->
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-slate-400 tracking-wider uppercase">あなたが追加した問題 (<span id="custom-questions-count">0</span>)</span>
+                    <button id="clear-all-btn" onclick="requestClearAll()" class="hidden text-xxs font-semibold text-rose-500 hover:underline">
+                        すべて削除
+                    </button>
+                </div>
+                <div id="custom-questions-list" class="space-y-2">
+                    <div class="p-4 text-center bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-750 text-slate-400 text-xs">
+                        あなたが追加したカスタム問題はここに表示されます。
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- CUSTOM DIALOGS & MODALS -->
+    <div id="custom-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-150 dark:border-slate-700 max-w-sm w-full p-6 shadow-2xl text-center space-y-4 transform scale-95 transition-transform duration-300">
+            <div id="modal-icon-container" class="inline-flex p-3 rounded-full">
+                <!-- アイコンが動的に挿入されます -->
+            </div>
+            <div class="space-y-1.5">
+                <h3 id="modal-title" class="text-base font-bold text-slate-800 dark:text-white">確認</h3>
+                <p id="modal-message" class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">メッセージ内容がここに入ります。</p>
+            </div>
+            <div id="modal-actions" class="flex space-x-2 pt-2">
+                <!-- アクションボタンが動的に挿入されます -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKのインポートとクイズアプリロジック -->
+    <script>
+        // クイズデフォルト問題（最初から搭載されている10問）
+        const defaultQuestions = [
+            {
+                id: "def-1",
+                category: "IT基礎知識 ＆ 原理",
+                question: "企業の基幹業務（販売、在庫、財務会計など）を直接支援し、停止すると企業活動全体に甚大な影響を及ぼすため、24時間365日の高水準な安定稼働が求められるシステムを何と呼びますか。",
+                options: ["情報系システム", "基幹系システム", "基盤系システム", "制御系システム"],
+                answer: "基幹系システム",
+                explanation: "企業の主要な事業・経済活動に直結する業務システムを「基幹系システム（またはミッションクリティカルシステム）」と呼び、一時的な停止も許されません。一方、電子メールや社内SNSなどは「情報系システム」に分類されます。"
+            },
+            {
+                id: "def-2",
+                category: "IT基礎知識 ＆ 原理",
+                question: "コンピュータの5大装置において、記憶装置からプログラムの命令を取り出して解読し、それに基づいてコンピュータ全体の動作を制御するための信号を送る役割を担う装置はどれですか。",
+                options: ["演算装置", "入力装置", "制御装置", "出力装置"],
+                answer: "制御装置",
+                explanation: "「制御装置」は、メモリから命令を取り出して解析し、他の各装置（演算・記憶・入力・出力）に指令（制御信号）を伝える役割を持ちます。CPUは制御装置と演算装置から構成されます。"
+            },
+            {
+                id: "def-3",
+                category: "IT基礎知識 ＆ 原理",
+                question: "ノイマン型コンピュータの設計思想における主要な特徴の一つで、実行するプログラムを実行前にあらかじめ主記憶装置（メインメモリ）にロードしておき、それを順次読み出して実行する方式を何と呼びますか。",
+                options: ["直接実行方式", "プログラム内蔵方式", "スタックロード方式", "逐次変換方式"],
+                answer: "プログラム内蔵方式",
+                explanation: "実行するプログラムをあらかじめ主記憶に格納しておくこの方式は「プログラム内蔵方式（またはストアードプログラム方式）」と呼ばれます。これにより、配線を変更することなくプログラムを差し替えて様々な処理ができるようになります。"
+            },
+            {
+                id: "def-4",
+                category: "IT基礎知識 ＆ 原理",
+                question: "CPUを構成するレジスタのうち、次に実行すべき命令が格納されている主記憶上のアドレス（メモリ番地）を常に保持する、プログラムの順番実行の要となるレジスタはどれですか。",
+                options: ["命令レジスタ (IR)", "プログラムカウンタ (PC)", "アキュムレータ (AC)", "ベースレジスタ"],
+                answer: "プログラムカウンタ (PC)",
+                explanation: "プログラムカウンタ (PC) は、「次に」実行すべき命令のメモリアドレスを指し示している特別なレジスタです。命令を1つ取り出すたびに、自動的に次のアドレスを指すように＋1加算されます。"
+            },
+            {
+                id: "def-5",
+                category: "IT基礎知識 ＆ 原理",
+                question: "CPUがプログラムを実行する基本ステップ（命令実行サイクル）において、命令レジスタ（IR）にロードされた機械語の命令コードを解析して、どの演算装置やデータを使うかを判定するステップはどれですか。",
+                options: ["命令の取り出し (フェッチ)", "命令の解読 (デコード)", "対象データの読み出し", "命令の実行"],
+                answer: "命令の解読 (デコード)",
+                explanation: "命令実行サイクルは、「命令の取り出し（フェッチ）」➔「命令の解読（デコード）」➔「対象データ（オペランド）の読み出し」➔「命令の実行」の順でループします。命令のコードを読み解く段階はデコードと呼ばれ、命令デコーダが担当します。"
+            },
+            {
+                id: "def-6",
+                category: "IT基礎知識 ＆ 原理",
+                question: "機械語のアドレス指定方式において、命令の「オペランド（アドレス情報）」部に、処理の対象となる実データそのものが直接書き込まれており、主記憶装置（メモリ）へのアクセスが一切発生しない、最も処理が高速な方式はどれですか。",
+                options: ["直接アドレス指定", "間接アドレス指定", "即値アドレス指定", "相対アドレス指定"],
+                answer: "即値アドレス指定",
+                explanation: "即値（そくち）アドレス指定方式では、オペランドに「データ値そのもの」が直接入っているため、メモリへデータを読み出しに行く手間がかかりません。そのため、もっとも高速に命令を処理することができます。"
+            },
+            {
+                id: "def-7",
+                category: "IT基礎知識 ＆ 原理",
+                question: "オペランド部の値に「インデックス（指標）レジスタ」の格納値を加算して実効アドレス（実際のメモリアドレス）を割り出す方式は、プログラム上でどのようなデータ処理を実行するのに最も効率的ですか。",
+                options: ["再配置可能プログラムの呼出し", "配列の繰り返し処理", "サブルーチンのジャンプ処理", "不揮発データの一時セーブ"],
+                answer: "配列の繰り返し処理",
+                explanation: "インデックスアドレス指定方式は、等間隔に並んだアドレス領域を扱うのに適しています。インデックスレジスタの数値をループごとに増減（例: +1ずつ）させるだけで、配列データの要素に順番にアクセスすることができます。"
+            },
+            {
+                id: "def-8",
+                category: "IT基礎知識 ＆ 原理",
+                question: "プログラムの「ロードされた先頭アドレス」を保持するベースレジスタ値と、オペランド部の相対的な位置情報（差分）を加算してアドレスを特定する方式が、最も直接的に貢献する特徴はどれですか。",
+                options: ["メモリの揮発性の防止", "演算速度の超高速化", "プログラムの再配置（リロケータブル）の容易化", "マルチコアによる並行分散処理"],
+                answer: "プログラムの再配置（リロケータブル）の容易化",
+                explanation: "ベースアドレス指定方式は、メモリ上のどこにプログラムがロードされても「ベースレジスタに先頭アドレスを代入する」だけで、プログラム内のコードを変更せずに実効アドレスを計算できます。これを「再配置可能（リロケータブル）」と呼びます。"
+            },
+            {
+                id: "def-9",
+                category: "IT基礎知識 ＆ 原理",
+                question: "コンピュータにおける「主記憶装置」と「補助記憶装置（SSDやHDDなど）」の一般的な関係性や比較について、最も適切な説明はどれですか。",
+                options: [
+                    "主記憶装置は補助記憶装置よりも動作速度が速く、電源が切れてもデータは消去されない。",
+                    "補助記憶装置は主記憶装置よりも一般的に大容量で、動作速度が速い。",
+                    "主記憶装置は補助記憶装置に比べてアクセスが高速であるが、容量あたり高価であり、電源が切れると中身が消える特性（揮発性）を持つ。",
+                    "補助記憶装置には、CPUが直接指示を送り、命令コードを1つずつ取り出す。"
+                ],
+                answer: "主記憶装置は補助記憶装置に比べてアクセスが高速であるが、容量あたり高価であり、電源が切れると中身が消える特性（揮発性）を持つ。",
+                explanation: "主記憶装置（メモリ）は、CPUが直接データをやり取りするため非常に高速いますが、電源を切るとデータが消えてしまう揮発性という性質があります。そのため、長期保管したいデータは不揮発性の「補助記憶装置（SSDやHDD）」に記憶しておきます。"
+            },
+            {
+                id: "def-10",
+                category: "IT基礎知識 ＆ 原理",
+                question: "「相対アドレス指定方式」において、プログラム内で現在位置からの距離を用いて実効アドレスを計算するために、加算対象として用いられるレジスタはどれですか。",
+                options: ["ベースレジスタ", "インデックスレジスタ", "プログラムカウンタ", "アキュムレータ"],
+                answer: "プログラムカウンタ",
+                explanation: "相対アドレス指定方式は、次に実行するべきアドレスを示す「プログラムカウンタ (PC)」の値を基準（足し合わせる基準）とします。これにより、プログラム自身の現在いる実行位置からの相対距離でアドレスを表現することができます。"
+            }
+        ];
+
+        // 要約カンペの全テキストデータ（エクスポート用）
+        const summaryNotesData = [
+            { category: "5大装置", name: "制御装置", desc: "プログラムの命令を取り出して解読し、各装置をコントロールする。", note: "ITパスポート頻出。CPUを構成する一部。" },
+            { category: "5大装置", name: "演算装置", desc: "四則演算や論理演算を実務。算術論理演算装置（ALU）と呼ばれる。", note: "CPUを構成する一部。" },
+            { category: "5大装置", name: "記憶装置", desc: "主記憶（メモリ・揮発性）と、補助記憶（SSD/HDD・不揮発性）に大別。", note: "主記憶は高速だが高価で揮発性。" },
+            { category: "5大装置", name: "入力・出力", desc: "外部から情報を取り込む装置と、処理結果を画面や紙等に表現する装置。", note: "キーボード、マウス、ディスプレイ等。" },
+            { category: "主要レジスタ", name: "プログラムカウンタ (PC)", desc: "次に実行する命令が入っている主記憶上のアドレスを指す。", note: "最重要。命令フェッチごとに自動加算。" },
+            { category: "主要レジスタ", name: "命令レジスタ (IR)", desc: "取り出した命令そのものを一時的に記憶するレジスタ。", note: "これを解読して各装置へ信号を出す。" },
+            { category: "主要レジスタ", name: "アキュムレータ", desc: "演算の対象となるデータや演算結果を一時的に記憶する。", note: "演算器(ALU)と直結。" },
+            { category: "実行サイクル", name: "4段階サイクル", desc: "1. フェッチ ➔ 2. デコード ➔ 3. オペランド読出し ➔ 4. 命令実行", note: "CPUはこれを1ステップとしてループする。" },
+            { category: "アドレス指定", name: "即値アドレス指定", desc: "オペランド部（アドレス部）に、データそのものが入っている方式。", note: "メモリアクセスが発生しないため最速。" },
+            { category: "アドレス指定", name: "直接アドレス指定", desc: "オペランド部の値がそのまま実効アドレスを指す方式。", note: "命令長にアドレス指定幅が制限される。" },
+            { category: "アドレス指定", name: "間接アドレス指定", desc: "オペランド部に、別の番地を示すアドレスが格納されている方式。", note: "複数回アクセスするため遅いが広範囲対応。" },
+            { category: "アドレス指定", name: "インデックス指定", desc: "オペランド値 ＋ インデックスレジスタの値 ＝ 実効アドレス。", note: "配列やループ処理に最適。" },
+            { category: "アドレス指定", name: "ベースアドレス指定", desc: "オペランド値 ＋ ベースレジスタの値 ＝ 実効アドレス。", note: "プログラムの再配置（リロケータブル）を容易にする。" },
+            { category: "アドレス指定", name: "相対アドレス指定", desc: "オペランド値 ＋ プログラムカウンタの値 ＝ 実効アドレス。", note: "現在の命令位置からの距離で番地を指定する。" }
+        ];
+
+        // アプリの状態
+        let questions = [...defaultQuestions]; // 現在のクイズ配列 (デフォルト + カスタム)
+        let customQuestions = [];              // ローカルストレージから取得したカスタム問題
+        let activeQuizSet = [];                // 現在クイズで実際に解いている問題群（やり直し機能用）
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let answeredQuestions = [];
+        let userId = "";
+
+        // UIバインディング
+        const syncStatusText = document.getElementById('sync-status-text');
+        const syncIndicator = document.getElementById('sync-indicator');
+
+        // ローカルストレージでの初期化
+        function initializeLocalDatabase() {
+            try {
+                // ユーザーID（ローカル識別子）の生成または読み込み
+                userId = localStorage.getItem('local_user_id');
+                if (!userId) {
+                    userId = 'LOCAL-' + Math.random().toString(36).substring(2, 15).toUpperCase();
+                    localStorage.setItem('local_user_id', userId);
+                }
+                document.getElementById('display-user-id').innerText = userId;
+
+                // 接続ステータス表示更新 (ローカルモード)
+                syncIndicator.innerHTML = `
+                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                    <span>ローカル保存中</span>
+                `;
+
+                // ローカルデータのロード
+                loadCustomQuestions();
+            } catch (error) {
+                console.error("Local Storage Initialization Error: ", error);
+                showCustomModal("error", "初期化エラー", "ローカルストレージの読み込みに失敗しました。デフォルトの問題のみ動作します。");
+                syncIndicator.innerHTML = `
+                    <span class="w-1.5 h-1.5 bg-rose-500 rounded-full"></span>
+                    <span>保存エラー</span>
+                `;
+            }
+        }
+
+        // ローカルストレージからカスタム問題をロード
+        function loadCustomQuestions() {
+            const stored = localStorage.getItem('custom_questions');
+            if (stored) {
+                try {
+                    customQuestions = JSON.parse(stored);
+                } catch (e) {
+                    console.error("Parse error custom questions", e);
+                    customQuestions = [];
+                }
+            } else {
+                customQuestions = [];
+            }
+
+            // クイズリストのマージ
+            questions = [...defaultQuestions, ...customQuestions];
+            
+            // 管理タブの追加リスト更新
+            updateCustomQuestionsUI();
+            
+            // クイズの進捗状況を更新
+            if (currentQuestionIndex === 0 && answeredQuestions.length === 0) {
+                activeQuizSet = [...questions];
+                displayQuestion();
+            }
+        }
+
+        // カスタム問題をセーブ
+        function saveCustomQuestions() {
+            try {
+                localStorage.setItem('custom_questions', JSON.stringify(customQuestions));
+                loadCustomQuestions(); // 再ロードしてUIと変数を同期
+            } catch (error) {
+                console.error("Save Error:", error);
+                showCustomModal("error", "保存エラー", "容量上限などによりブラウザに保存できませんでした。");
+            }
+        }
+
+        // 簡易CSVパーサー
+        function parseCSV(text) {
+            let lines = [];
+            let row = [""];
+            let inQuotes = false;
+            for (let i = 0; i < text.length; i++) {
+                let c = text[i];
+                let next = text[i+1];
+                if (c === '"') {
+                    if (inQuotes && next === '"') {
+                        row[row.length - 1] += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (c === ',' && !inQuotes) {
+                    row.push('');
+                } else if ((c === '\r' || c === '\n') && !inQuotes) {
+                    if (c === '\r' && next === '\n') { i++; }
+                    lines.push(row);
+                    row = [''];
+                } else {
+                    row[row.length - 1] += c;
+                }
+            }
+            if (row.length > 1 || row[0] !== '') {
+                lines.push(row);
+            }
+            return lines;
+        }
+
+        // CSVからの取り込みロジック
+        function processCSVContent(text) {
+            const rawRows = parseCSV(text);
+            if (rawRows.length <= 1) {
+                showCustomModal("warning", "データなし", "取り込める有効な行がありませんでした。");
+                return;
+            }
+
+            // 先頭行がヘッダーの場合はスキップ
+            let startIndex = 0;
+            if (rawRows[0][0].includes("問題") || rawRows[0][0].includes("question")) {
+                startIndex = 1;
+            }
+
+            let importCount = 0;
+            let skipCount = 0;
+
+            for (let i = startIndex; i < rawRows.length; i++) {
+                const r = rawRows[i];
+                if (!r[0] || r.length < 6) {
+                    if (r.join("").trim() !== "") skipCount++;
+                    continue;
+                }
+
+                const question = r[0].trim();
+                const opt1 = r[1].trim();
+                const opt2 = r[2].trim();
+                const opt3 = r[3].trim();
+                const opt4 = r[4].trim();
+                const answer = r[5].trim();
+                const explanation = (r[6] || "追加されたカスタム問題です。").trim();
+
+                const options = [opt1, opt2, opt3, opt4];
+                if (!options.includes(answer)) {
+                    skipCount++;
+                    continue;
+                }
+
+                const newId = 'custom-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+                customQuestions.push({
+                    id: newId,
+                    category: "カスタム登録",
+                    question,
+                    options,
+                    answer,
+                    explanation,
+                    createdAt: Date.now()
+                });
+                importCount++;
+            }
+
+            if (importCount > 0) {
+                saveCustomQuestions();
+                showCustomModal("success", "インポート完了", `${importCount}件の問題を追加しました。${skipCount > 0 ? ` (エラー/不整合のため${skipCount}件スキップ)` : ""}`);
+            } else {
+                showCustomModal("warning", "エラー", "有効な問題データを読み取れませんでした。正解の値が選択肢のいずれかと完全一致しているかご確認ください。");
+            }
+        }
+
+        // ファイル選択時のイベント
+        window.handleFileSelect = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                processCSVContent(e.target.result);
+            };
+            reader.readAsText(file, "UTF-8");
+            event.target.value = ""; // リセット
+        };
+
+        // コピペエリアからのインポート
+        window.importFromPaste = function() {
+            const text = document.getElementById('csv-text-paste').value.trim();
+            if (!text) {
+                showCustomModal("warning", "テキストが空", "CSVテキストを入力してください。");
+                return;
+            }
+            processCSVContent(text);
+            document.getElementById('csv-text-paste').value = ""; // クリア
+        };
+
+        // 手動フォームからの登録
+        window.submitManualQuestion = function() {
+            const question = document.getElementById('manual-question').value.trim();
+            const opt1 = document.getElementById('manual-opt1').value.trim();
+            const opt2 = document.getElementById('manual-opt2').value.trim();
+            const opt3 = document.getElementById('manual-opt3').value.trim();
+            const opt4 = document.getElementById('manual-opt4').value.trim();
+            const correctIndex = document.getElementById('manual-answer').value;
+            const explanation = document.getElementById('manual-explanation').value.trim();
+
+            if (!question || !opt1 || !opt2 || !opt3 || !opt4 || !correctIndex) {
+                showCustomModal("warning", "入力不足", "解説以外のすべての項目を入力・選択してください。");
+                return;
+            }
+
+            const options = [opt1, opt2, opt3, opt4];
+            const answer = options[parseInt(correctIndex) - 1];
+
+            const newId = 'custom-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+            customQuestions.push({
+                id: newId,
+                category: "手動カスタム登録",
+                question,
+                options,
+                answer,
+                explanation: explanation || "追加されたカスタム問題です。",
+                createdAt: Date.now()
+            });
+
+            saveCustomQuestions();
+
+            // フォームをリセット
+            document.getElementById('manual-question').value = "";
+            document.getElementById('manual-opt1').value = "";
+            document.getElementById('manual-opt2').value = "";
+            document.getElementById('manual-opt3').value = "";
+            document.getElementById('manual-opt4').value = "";
+            document.getElementById('manual-answer').value = "";
+            document.getElementById('manual-explanation').value = "";
+
+            showCustomModal("success", "追加完了", "新しい問題をローカルストレージに保存しました。");
+        };
+
+        // 汎用CSVヘルパー（BOM付きUTF-8）
+        function downloadCSV(filename, csvContent) {
+            // エクセル等での日本語文字化けを防ぐためのBOM(\uFEFF)
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // CSVテンプレートのダウンロード
+        window.downloadCSVTemplate = function() {
+            const csvHeader = "問題文,選択肢1,選択肢2,選択肢3,選択肢4,正解(選択肢と完全一致),解説\n";
+            const csvBody = "ノイマン型コンピュータにおける2大思想は？,アナログ方式とデジタル方式,プログラム内蔵方式と順次制御方式,中央集権方式と並列分散方式,不揮発メモリとキャッシュメモリ,プログラム内蔵方式と順次制御方式,プログラム内蔵方式と順次制御方式がノイマン型の2大特徴です。";
+            downloadCSV("it_system_quiz_template.csv", csvHeader + csvBody);
+        };
+
+        // 初期問題10問のCSVエクスポート
+        window.exportDefaultQuestions = function() {
+            let csv = "問題文,選択肢1,選択肢2,選択肢3,選択肢4,正解(選択肢と完全一致),解説\n";
+            defaultQuestions.forEach(q => {
+                // カンマやダブルクォーテーションのエスケープ
+                const escapeCsv = (str) => `"${str.replace(/"/g, '""')}"`;
+                const qText = escapeCsv(q.question);
+                const o1 = escapeCsv(q.options[0]);
+                const o2 = escapeCsv(q.options[1]);
+                const o3 = escapeCsv(q.options[2]);
+                const o4 = escapeCsv(q.options[3]);
+                const ans = escapeCsv(q.answer);
+                const exp = escapeCsv(q.explanation);
+                csv += `${qText},${o1},${o2},${o3},${o4},${ans},${exp}\n`;
+            });
+            downloadCSV("default_quiz_questions.csv", csv);
+            showCustomModal("success", "エクスポート完了", "初期問題の10問をCSVファイルとして保存しました。");
+        };
+
+        // 講義要約カンペのCSVエクスポート
+        window.exportSummaryNotes = function() {
+            let csv = "分類,項目名,詳細な説明,特徴・補足\n";
+            summaryNotesData.forEach(item => {
+                const escapeCsv = (str) => `"${str.replace(/"/g, '""')}"`;
+                csv += `${escapeCsv(item.category)},${escapeCsv(item.name)},${escapeCsv(item.desc)},${escapeCsv(item.note)}\n`;
+            });
+            downloadCSV("lecture_summary_notes.csv", csv);
+            showCustomModal("success", "エクスポート完了", "講義の要約データをCSVファイルとして保存しました。");
+        };
+
+        // UI: 追加されたカスタム問題の一覧更新
+        function updateCustomQuestionsUI() {
+            const listContainer = document.getElementById('custom-questions-list');
+            const countSpan = document.getElementById('custom-questions-count');
+            const clearAllBtn = document.getElementById('clear-all-btn');
+
+            countSpan.innerText = customQuestions.length;
+
+            if (customQuestions.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="p-4 text-center bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-750 text-slate-400 text-xs">
+                        あなたが追加したカスタム問題はここに表示されます。
+                    </div>
+                `;
+                clearAllBtn.classList.add('hidden');
+                return;
+            }
+
+            clearAllBtn.classList.remove('hidden');
+            listContainer.innerHTML = '';
+
+            customQuestions.forEach((q) => {
+                const card = document.createElement('div');
+                card.className = "p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm flex justify-between items-start space-x-3 text-xs";
+                card.innerHTML = `
+                    <div class="flex-1 space-y-1 overflow-hidden">
+                        <p class="font-bold text-slate-800 dark:text-white leading-relaxed line-clamp-2">${q.question}</p>
+                        <p class="text-xxs text-emerald-600 dark:text-emerald-400 font-semibold truncate">正解: ${q.answer}</p>
+                    </div>
+                    <button onclick="deleteQuestion('${q.id}')" class="text-rose-500 hover:text-rose-600 text-xxs font-bold bg-rose-50 dark:bg-rose-950/30 p-2 rounded-xl flex-shrink-0 transition">
+                        削除
+                    </button>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+
+        // 個別削除
+        window.deleteQuestion = function(docId) {
+            showCustomModal("confirm", "問題を削除しますか？", "この操作は取り消せません。", function() {
+                customQuestions = customQuestions.filter(q => q.id !== docId);
+                saveCustomQuestions();
+                showCustomModal("success", "削除完了", "問題を削除しました。");
+            });
+        };
+
+        // 一括削除リクエスト
+        window.requestClearAll = function() {
+            showCustomModal("confirm", "すべて削除しますか？", `追加した ${customQuestions.length} 件の問題すべてをブラウザから完全に削除します。`, function() {
+                customQuestions = [];
+                saveCustomQuestions();
+                showCustomModal("success", "全件削除完了", "すべての追加問題を削除しました。");
+            });
+        };
+
+        // タブ切り替え関数
+        window.switchTab = function(tabName) {
+            const quizView = document.getElementById('quiz-view');
+            const summaryView = document.getElementById('summary-view');
+            const manageView = document.getElementById('manage-view');
+
+            const tabQuizBtn = document.getElementById('tab-quiz');
+            const tabSummaryBtn = document.getElementById('tab-summary');
+            const tabManageBtn = document.getElementById('tab-manage');
+
+            // ビューのリセット
+            quizView.classList.add('hidden');
+            summaryView.classList.add('hidden');
+            manageView.classList.add('hidden');
+
+            tabQuizBtn.className = "tab-transition py-1.5 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white";
+            tabSummaryBtn.className = "tab-transition py-1.5 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white";
+            tabManageBtn.className = "tab-transition py-1.5 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white";
+
+            if (tabName === 'quiz') {
+                quizView.classList.remove('hidden');
+                tabQuizBtn.className = "tab-transition py-1.5 text-xs font-semibold rounded-lg shadow-sm bg-white dark:bg-slate-600 text-slate-800 dark:text-white";
+            } else if (tabName === 'summary') {
+                summaryView.classList.remove('hidden');
+                tabSummaryBtn.className = "tab-transition py-1.5 text-xs font-semibold rounded-lg shadow-sm bg-white dark:bg-slate-600 text-slate-800 dark:text-white";
+            } else if (tabName === 'manage') {
+                manageView.classList.remove('hidden');
+                tabManageBtn.className = "tab-transition py-1.5 text-xs font-semibold rounded-lg shadow-sm bg-white dark:bg-slate-600 text-slate-800 dark:text-white";
+            }
+        };
+
+        // クイズ表示エンジン
+        function displayQuestion() {
+            if (activeQuizSet.length === 0) {
+                activeQuizSet = [...questions];
+            }
+            if (activeQuizSet.length === 0) return;
+
+            // インデックスの境界ガード
+            if (currentQuestionIndex >= activeQuizSet.length) {
+                currentQuestionIndex = activeQuizSet.length - 1;
+            }
+
+            const currentQuestion = activeQuizSet[currentQuestionIndex];
+            
+            // 進捗の更新
+            document.getElementById('current-question-num').innerText = currentQuestionIndex + 1;
+            document.getElementById('total-questions-num').innerText = activeQuizSet.length;
+            
+            const progressPercent = ((currentQuestionIndex + 1) / activeQuizSet.length) * 100;
+            document.getElementById('quiz-progress-bar').style.width = `${progressPercent}%`;
+
+            // 正答率の計算と表示
+            const accuracy = currentQuestionIndex === 0 ? 0 : Math.round((score / currentQuestionIndex) * 100);
+            document.getElementById('current-accuracy').innerText = accuracy;
+
+            // クイズカード内容更新
+            document.getElementById('quiz-category-badge').innerText = currentQuestion.category || "IT基礎知識 ＆ 原理";
+            document.getElementById('question-text').innerText = currentQuestion.question;
+
+            // 選択肢ボタンのクリア＆再構築
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+
+            currentQuestion.options.forEach((option) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-[0.98] transition font-medium text-sm text-slate-800 dark:text-slate-200 flex items-center justify-between";
+                btn.innerHTML = `
+                    <span>${option}</span>
+                    <span class="w-5 h-5 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center flex-shrink-0 text-transparent text-xxs"></span>
+                `;
+                btn.onclick = () => selectOption(option, btn);
+                optionsContainer.appendChild(btn);
+            });
+
+            // フィードバックパネルをリセット
+            document.getElementById('feedback-panel').classList.add('hidden');
+            document.getElementById('quiz-card').classList.remove('opacity-60');
+        }
+
+        // 選択処理
+        function selectOption(selectedOption, buttonElement) {
+            const currentQuestion = activeQuizSet[currentQuestionIndex];
+            const isCorrect = selectedOption === currentQuestion.answer;
+            
+            const buttons = document.querySelectorAll('#options-container button');
+            buttons.forEach(btn => btn.disabled = true);
+
+            // 正解・不正解の集計
+            if (isCorrect) {
+                score++;
+                buttonElement.className = "w-full text-left p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 font-semibold text-sm text-emerald-800 dark:text-emerald-300 flex items-center justify-between transition-all";
+                buttonElement.querySelector('span:last-child').className = "w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 text-white text-xxs font-bold";
+                buttonElement.querySelector('span:last-child').innerHTML = "✓";
+            } else {
+                buttonElement.className = "w-full text-left p-4 rounded-xl border-2 border-rose-500 bg-rose-50/50 dark:bg-rose-950/20 font-semibold text-sm text-rose-800 dark:text-rose-300 flex items-center justify-between transition-all";
+                buttonElement.querySelector('span:last-child').className = "w-5 h-5 rounded-full bg-rose-500 flex items-center justify-center flex-shrink-0 text-white text-xxs font-bold";
+                buttonElement.querySelector('span:last-child').innerHTML = "✕";
+
+                // 正解のボタンを目立たせる
+                buttons.forEach(btn => {
+                    if (btn.innerText.trim() === currentQuestion.answer) {
+                        btn.className = "w-full text-left p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/10 font-semibold text-sm text-emerald-700 dark:text-emerald-400 flex items-center justify-between transition-all";
+                    }
+                });
+            }
+
+            // 回答履歴への保存 (間違えた問題のみを復習する際に、元の問題オブジェクト丸ごと保持)
+            answeredQuestions.push({
+                originalQuestion: currentQuestion,
+                question: currentQuestion.question,
+                userAnswer: selectedOption,
+                correctAnswer: currentQuestion.answer,
+                userIsCorrect: isCorrect
+            });
+
+            // フィードバックパネルの表示
+            showFeedback(isCorrect, currentQuestion.explanation);
+        }
+
+        // フィードバック表示
+        function showFeedback(isCorrect, explanation) {
+            const feedbackPanel = document.getElementById('feedback-panel');
+            const feedbackIcon = document.getElementById('feedback-icon');
+            const feedbackTitle = document.getElementById('feedback-title');
+            const explanationText = document.getElementById('explanation-text');
+
+            feedbackPanel.classList.remove('hidden');
+            document.getElementById('quiz-card').classList.add('opacity-60');
+
+            if (isCorrect) {
+                feedbackPanel.className = "fade-in p-5 rounded-2xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/30 dark:bg-emerald-950/10 flex flex-col space-y-2";
+                feedbackIcon.className = "p-1.5 rounded-xl bg-emerald-500 text-white flex-shrink-0";
+                feedbackIcon.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4"></path></svg>`;
+                feedbackTitle.className = "text-base font-bold text-emerald-800 dark:text-emerald-400";
+                feedbackTitle.innerText = "正解です！";
+            } else {
+                feedbackPanel.className = "fade-in p-5 rounded-2xl border border-rose-200 dark:border-rose-900 bg-rose-50/30 dark:bg-rose-950/10 flex flex-col space-y-2";
+                feedbackIcon.className = "p-1.5 rounded-xl bg-rose-500 text-white flex-shrink-0";
+                feedbackIcon.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+                feedbackTitle.className = "text-base font-bold text-rose-800 dark:text-rose-400";
+                feedbackTitle.innerText = "不正解です";
+            }
+
+            explanationText.innerText = explanation;
+        }
+
+        // 次の問題ボタンのコントロール
+        const nextBtn = document.getElementById('next-btn');
+        nextBtn.onclick = function() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < activeQuizSet.length) {
+                displayQuestion();
+            } else {
+                showResults();
+            }
+        };
+
+        // 結果画面
+        function showResults() {
+            document.getElementById('quiz-progress-panel').classList.add('hidden');
+            document.getElementById('quiz-card').classList.add('hidden');
+            document.getElementById('feedback-panel').classList.add('hidden');
+            
+            const resultsPanel = document.getElementById('results-panel');
+            resultsPanel.classList.remove('hidden');
+
+            const finalAccuracy = Math.round((score / activeQuizSet.length) * 100);
+            document.getElementById('result-score').innerText = score;
+            document.querySelectorAll('.result-total-num').forEach(el => el.innerText = activeQuizSet.length);
+            document.getElementById('result-accuracy').innerText = finalAccuracy;
+
+            const commentBox = document.getElementById('results-comment');
+            if (score === activeQuizSet.length) {
+                commentBox.className = "p-4 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-400 rounded-xl text-sm font-medium leading-relaxed";
+                commentBox.innerText = "素晴らしい！パーフェクト達成です。コンピュータの仕組みを完璧にマスターできています！";
+            } else if (score >= activeQuizSet.length * 0.8) {
+                commentBox.className = "p-4 bg-blue-50 dark:bg-blue-950/30 text-blue-800 dark:text-blue-400 rounded-xl text-sm font-medium leading-relaxed";
+                commentBox.innerText = "合格点クリアです！実力がしっかりついています。この調子で学習を進めましょう！";
+            } else {
+                commentBox.className = "p-4 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-400 rounded-xl text-sm font-medium leading-relaxed";
+                commentBox.innerText = "もう少しです！要約カンペを見返して、間違えたポイントを復習してみましょう。";
+            }
+
+            // レビューリスト作成
+            const incorrectList = document.getElementById('incorrect-questions-list');
+            const reviewSection = document.getElementById('incorrect-review-section');
+            const retryIncorrectBtn = document.getElementById('retry-incorrect-btn');
+            incorrectList.innerHTML = '';
+
+            const incorrects = answeredQuestions.filter(q => !q.userIsCorrect);
+            if (incorrects.length > 0) {
+                reviewSection.classList.remove('hidden');
+                retryIncorrectBtn.classList.remove('hidden'); // ボタンを表示
+                incorrects.forEach(q => {
+                    const div = document.createElement('div');
+                    div.className = "p-3 bg-slate-50 dark:bg-slate-700/30 border border-slate-100 dark:border-slate-700 rounded-xl text-xs space-y-1";
+                    div.innerHTML = `
+                        <p class="font-bold text-slate-700 dark:text-slate-300">${q.question}</p>
+                        <p class="text-rose-600 dark:text-rose-400">あなたの回答: ${q.userAnswer}</p>
+                        <p class="text-emerald-600 dark:text-emerald-400 font-semibold">正解: ${q.correctAnswer}</p>
+                    `;
+                    incorrectList.appendChild(div);
+                });
+            } else {
+                reviewSection.classList.add('hidden');
+                retryIncorrectBtn.classList.add('hidden'); // 全問正解ならボタンを隠す
+            }
+        }
+
+        // リスタート（全体）
+        window.restartQuiz = function() {
+            currentQuestionIndex = 0;
+            score = 0;
+            answeredQuestions = [];
+            activeQuizSet = [...questions]; // 登録中の全クイズを再セット
+            
+            document.getElementById('quiz-progress-panel').classList.remove('hidden');
+            document.getElementById('quiz-card').classList.remove('hidden');
+            document.getElementById('results-panel').classList.add('hidden');
+
+            displayQuestion();
+        };
+
+        // 間違えた問題だけをやり直す
+        window.retryIncorrectQuestions = function() {
+            const incorrects = answeredQuestions.filter(q => !q.userIsCorrect).map(q => q.originalQuestion);
+            if (incorrects.length === 0) return;
+
+            currentQuestionIndex = 0;
+            score = 0;
+            answeredQuestions = [];
+            activeQuizSet = [...incorrects]; // 間違えた問題のみを復習セットにする
+            
+            document.getElementById('quiz-progress-panel').classList.remove('hidden');
+            document.getElementById('quiz-card').classList.remove('hidden');
+            document.getElementById('results-panel').classList.add('hidden');
+
+            displayQuestion();
+        };
+
+        // 洗練されたカスタムダイアログ（alert/confirmの代わり）
+        function showCustomModal(type, title, message, confirmCallback = null) {
+            const modal = document.getElementById('custom-modal');
+            const iconContainer = document.getElementById('modal-icon-container');
+            const titleEl = document.getElementById('modal-title');
+            const msgEl = document.getElementById('modal-message');
+            const actionsContainer = document.getElementById('modal-actions');
+
+            titleEl.innerText = title;
+            msgEl.innerText = message;
+            actionsContainer.innerHTML = '';
+
+            // スタイル設定
+            let iconSvg = "";
+            let iconBgClass = "";
+
+            if (type === "success") {
+                iconBgClass = "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400";
+                iconSvg = `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4"></path></svg>`;
+            } else if (type === "warning") {
+                iconBgClass = "bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400";
+                iconSvg = `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
+            } else if (type === "error") {
+                iconBgClass = "bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400";
+                iconSvg = `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
+            } else if (type === "confirm") {
+                iconBgClass = "bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400";
+                iconSvg = `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+            }
+
+            iconContainer.className = `inline-flex p-3 rounded-full ${iconBgClass}`;
+            iconContainer.innerHTML = iconSvg;
+
+            // アクションボタン
+            if (type === "confirm") {
+                const cancelBtn = document.createElement("button");
+                cancelBtn.className = "flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition";
+                cancelBtn.innerText = "キャンセル";
+                cancelBtn.onclick = () => modal.classList.add('hidden');
+
+                const okBtn = document.createElement("button");
+                okBtn.className = "flex-1 py-2.5 px-4 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs transition shadow-lg shadow-rose-600/20";
+                okBtn.innerText = "実行する";
+                okBtn.onclick = () => {
+                    modal.classList.add('hidden');
+                    if (confirmCallback) confirmCallback();
+                };
+
+                actionsContainer.appendChild(cancelBtn);
+                actionsContainer.appendChild(okBtn);
+            } else {
+                const closeBtn = document.createElement("button");
+                closeBtn.className = "w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition shadow-md";
+                closeBtn.innerText = "閉じる";
+                closeBtn.onclick = () => modal.classList.add('hidden');
+                actionsContainer.appendChild(closeBtn);
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        // ユーザーIDコピー
+        window.copyUserId = function() {
+            if (!userId) return;
+            const tempEl = document.createElement("textarea");
+            tempEl.value = userId;
+            document.body.appendChild(tempEl);
+            tempEl.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempEl);
+            
+            showCustomModal("success", "コピー完了", "ローカル学習IDをクリップボードにコピーしました。");
+        };
+
+        // ドラッグ＆ドロップ設定
+        const dropzone = document.getElementById('csv-dropzone');
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.add('border-blue-500', 'bg-blue-50/20');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('border-blue-500', 'bg-blue-50/20');
+            }, false);
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            const file = e.dataTransfer.files[0];
+            if (file && file.name.endsWith('.csv')) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    processCSVContent(evt.target.result);
+                };
+                reader.readAsText(file, "UTF-8");
+            } else {
+                showCustomModal("error", "ファイル形式エラー", "CSVファイルのみドラッグ＆ドロップ可能です。");
+            }
+        });
+
+        // 起動初期化
+        window.onload = function() {
+            switchTab('quiz');
+            initializeLocalDatabase();
+        };
+    </script>
+</body>
+</html>
