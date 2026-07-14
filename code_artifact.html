@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="ja" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>情報システム基礎 クイズ＆要約マスター</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'media',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans JP', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+        .progress-bar-transition {
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 h-full flex flex-col font-sans transition-colors duration-200">
+
+    <!-- ヘッダー -->
+    <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50 transition-colors">
+        <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <div class="bg-blue-600 text-white p-2 rounded-xl shadow-md shadow-blue-500/20">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                </div>
+                <div>
+                    <h1 class="text-sm font-bold tracking-tight text-slate-800 dark:text-white">情報システム基礎</h1>
+                    <p class="text-xxs text-slate-500 dark:text-slate-400">第2回 コンピュータシステム構成</p>
+                </div>
+            </div>
+            <!-- モード切り替えタブ -->
+            <div class="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-xl">
+                <button id="tab-quiz" onclick="switchTab('quiz')" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all shadow-sm bg-white dark:bg-slate-600 text-slate-800 dark:text-white">
+                    クイズ
+                </button>
+                <button id="tab-summary" onclick="switchTab('summary')" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">
+                    要約カンペ
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="flex-1 overflow-y-auto w-full max-w-md mx-auto px-4 py-4 pb-12">
+
+        <!-- ==================== クイズタブ ==================== -->
+        <div id="quiz-view" class="fade-in space-y-4">
+            
+            <!-- クイズ進行状況パネル -->
+            <div id="quiz-progress-panel" class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm space-y-3">
+                <div class="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+                    <span class="font-medium">問題 <span id="current-question-num" class="text-lg font-bold text-blue-600 dark:text-blue-400">1</span> / <span id="total-questions-num">10</span></span>
+                    <span class="font-medium bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full">正答率: <span id="current-accuracy">0</span>%</span>
+                </div>
+                <!-- プログレスバー -->
+                <div class="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                    <div id="quiz-progress-bar" class="bg-blue-600 h-full rounded-full progress-bar-transition" style="width: 10%;"></div>
+                </div>
+            </div>
+
+            <!-- クイズ本体カード -->
+            <div id="quiz-card" class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-md overflow-hidden min-h-[300px] flex flex-col justify-between">
+                
+                <!-- 問題テキスト -->
+                <div class="p-6 flex-1 space-y-4">
+                    <div class="inline-flex bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-lg text-xs font-semibold">
+                        IT基礎知識 ＆ 原理
+                    </div>
+                    <p id="question-text" class="text-base font-bold text-slate-800 dark:text-white leading-relaxed">
+                        ここに問題文が挿入されます。
+                    </p>
+                </div>
+
+                <!-- 選択肢ボタン群 -->
+                <div id="options-container" class="p-4 bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700 space-y-2.5">
+                    <!-- JavaScriptでボタンが動的に挿入されます -->
+                </div>
+            </div>
+
+            <!-- フィードバック ＆ 解説エリア -->
+            <div id="feedback-panel" class="hidden fade-in p-5 rounded-2xl border flex flex-col space-y-3">
+                <div class="flex items-center space-x-2.5">
+                    <div id="feedback-icon" class="p-1 rounded-full text-white">
+                        <!-- SVGアイコンが入る -->
+                    </div>
+                    <span id="feedback-title" class="text-base font-bold">正解 / 不正解</span>
+                </div>
+                <p id="explanation-text" class="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                    ここに解説文が入ります。
+                </p>
+                <button id="next-btn" class="mt-2 w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-semibold rounded-xl shadow-lg transition duration-200 text-sm flex items-center justify-center space-x-1">
+                    <span>次の問題へ</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </button>
+            </div>
+
+            <!-- 結果画面 -->
+            <div id="results-panel" class="hidden fade-in bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-lg text-center space-y-6">
+                <div class="space-y-2">
+                    <div class="inline-flex p-4 bg-blue-50 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
+                        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-slate-800 dark:text-white">学習完了！</h2>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">お疲れ様でした。今回の成果はこちらです。</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-2xl">
+                        <span class="text-xs text-slate-500 dark:text-slate-400 block mb-1">スコア</span>
+                        <span class="text-2xl font-bold text-slate-800 dark:text-white"><span id="result-score">0</span> / 10</span>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-2xl">
+                        <span class="text-xs text-slate-500 dark:text-slate-400 block mb-1">正解率</span>
+                        <span class="text-2xl font-bold text-blue-600 dark:text-blue-400"><span id="result-accuracy">0</span>%</span>
+                    </div>
+                </div>
+
+                <div id="results-comment" class="p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-xl text-sm font-medium leading-relaxed">
+                    素晴らしいですね！要点がしっかり身についています。
+                </div>
+
+                <!-- 復習セクション -->
+                <div id="incorrect-review-section" class="text-left space-y-3 hidden">
+                    <h3 class="text-xs font-bold text-slate-400 tracking-wider uppercase">要チェックな間違えた問題</h3>
+                    <div id="incorrect-questions-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        <!-- 動的に間違えた問題をリスト化 -->
+                    </div>
+                </div>
+
+                <div class="flex space-x-3 pt-2">
+                    <button onclick="restartQuiz()" class="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-sm transition shadow-lg shadow-blue-500/25">
+                        もう一度挑戦
+                    </button>
+                    <button onclick="switchTab('summary')" class="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold rounded-xl text-sm transition">
+                        カンペで復習
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ==================== 要約カンペタブ ==================== -->
+        <div id="summary-view" class="hidden fade-in space-y-5">
+            
+            <div class="p-4 bg-blue-50 dark:bg-blue-950/40 rounded-2xl border border-blue-100 dark:border-blue-900/50 flex items-start space-x-3">
+                <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div class="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+                    <strong class="font-bold block mb-0.5">講義のキーポイントまとめ</strong>
+                    この要約カードを事前に読むか、クイズ中に行き詰まったらここで仕様を確認しましょう。
+                </div>
+            </div>
+
+            <!-- アコーディオン1: 5大装置 -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-150 dark:border-slate-700 overflow-hidden shadow-sm">
+                <div class="p-4 bg-slate-50 dark:bg-slate-700/40 font-bold text-sm text-slate-800 dark:text-white flex justify-between items-center">
+                    <span>1. コンピュータの5大装置</span>
+                    <span class="text-xs text-slate-400 font-normal">ITパスポート頻出</span>
+                </div>
+                <div class="p-4 space-y-3.5 text-xs text-slate-600 dark:text-slate-300">
+                    <div class="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-700 pb-2">
+                        <span class="font-bold text-slate-800 dark:text-slate-200">制御装置</span>
+                        <span class="col-span-2">プログラムの命令を取り出し（フェッチ）、解読し各装置をコントロールする。</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-700 pb-2">
+                        <span class="font-bold text-slate-800 dark:text-slate-200">演算装置</span>
+                        <span class="col-span-2">四則演算や論理演算を実務。算術論理演算装置（ALU）と呼ばれる。</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-700 pb-2">
+                        <span class="font-bold text-slate-800 dark:text-slate-200">記憶装置</span>
+                        <span class="col-span-2">
+                            <strong class="text-slate-800 dark:text-slate-200">主記憶</strong>（電源切ると消える・極めて高速、メモリ等）と、<strong class="text-slate-800 dark:text-slate-200">補助記憶</strong>（電源切っても消えない、SSD/HDD等）に大別。
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 border-b border-slate-100 dark:border-slate-700 pb-2">
+                        <span class="font-bold text-slate-800 dark:text-slate-200">入力・出力</span>
+                        <span class="col-span-2">外部から情報を取り込む（マウス・キー）と、処理結果を出力する（ディスプレイ・印刷）機器。</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- アコーディオン2: レジスタと実行サイクル -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-150 dark:border-slate-700 overflow-hidden shadow-sm">
+                <div class="p-4 bg-slate-50 dark:bg-slate-700/40 font-bold text-sm text-slate-800 dark:text-white flex justify-between items-center">
+                    <span>2. CPU内の主要レジスタ & サイクル</span>
+                    <span class="text-xs text-blue-600 dark:text-blue-400 font-semibold">応用情報級</span>
+                </div>
+                <div class="p-4 space-y-3.5 text-xs text-slate-600 dark:text-slate-300">
+                    <div class="space-y-1">
+                        <div class="flex justify-between font-bold text-slate-800 dark:text-slate-200">
+                            <span>プログラムカウンタ (PC)</span>
+                            <span class="text-xxs bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 rounded">最重要</span>
+                        </div>
+                        <p class="pl-2 border-l-2 border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400">次に実行する命令が入っている主記憶上のアドレスを指す。</p>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between font-bold text-slate-800 dark:text-slate-200">
+                            <span>命令レジスタ (IR) / デコーダ</span>
+                        </div>
+                        <p class="pl-2 border-l-2 border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400">取り出した命令そのものを記憶する（IR）。それを解読して命令デコーダが指示を出す。</p>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between font-bold text-slate-800 dark:text-slate-200">
+                            <span>アキュムレータ</span>
+                        </div>
+                        <p class="pl-2 border-l-2 border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400">演算の対象となるデータや演算結果を一時的に記憶する。</p>
+                    </div>
+                    <div class="pt-2 border-t border-slate-100 dark:border-slate-700">
+                        <span class="font-bold text-slate-800 dark:text-slate-200 block mb-1">命令実行の4段階サイクル</span>
+                        <ol class="list-decimal pl-4 space-y-1 text-slate-500 dark:text-slate-400">
+                            <li><strong>フェッチ (Fetch)</strong>: PCをもとに命令を取り出す。</li>
+                            <li><strong>デコード (Decode)</strong>: 命令コードを解読する。</li>
+                            <li><strong>オペランド読出し</strong>: メモリアドレス等の処理対象をロードする。</li>
+                            <li><strong>命令実行</strong>: ALUが計算し、レジスタやメモリに書き戻す。</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <!-- アコーディオン3: アドレス指定方式 -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-150 dark:border-slate-700 overflow-hidden shadow-sm">
+                <div class="p-4 bg-slate-50 dark:bg-slate-700/40 font-bold text-sm text-slate-800 dark:text-white flex justify-between items-center">
+                    <span>3. 機械語のアドレス指定方式</span>
+                    <span class="text-xs text-slate-400 font-normal">差がつくポイント</span>
+                </div>
+                <div class="p-4 space-y-3.5 text-xs text-slate-600 dark:text-slate-300">
+                    <div class="space-y-1">
+                        <span class="font-bold text-slate-800 dark:text-slate-200 block">① 即値アドレス指定方式</span>
+                        <p class="text-slate-500 dark:text-slate-400">オペランド部（アドレス部）に、データそのものが入っている。メモリアクセスが発生しないため最速。</p>
+                    </div>
+                    <div class="space-y-1">
+                        <span class="font-bold text-slate-800 dark:text-slate-200 block">② 直接アドレス指定方式</span>
+                        <p class="text-slate-500 dark:text-slate-400">オペランド部の値がそのまま実効アドレスを指す方式。</p>
+                    </div>
+                    <div class="space-y-1">
+                        <span class="font-bold text-slate-800 dark:text-slate-200 block">③ 間接アドレス指定方式</span>
+                        <p class="text-slate-500 dark:text-slate-400">オペランド部に、別の番地を示すアドレスが格納されており、複数回経由してデータを取り出す方式。</p>
+                    </div>
+                    <div class="space-y-1">
+                        <span class="font-bold text-slate-800 dark:text-slate-200 block">④ インデックス(指標)アドレス指定方式</span>
+                        <p class="text-slate-500 dark:text-slate-400">オペランド値 ＋ インデックスレジスタの値 ＝ 実効アドレスとする方式。<strong>配列やループ処理</strong>に適している。</p>
+                    </div>
+                    <div class="space-y-1">
+                        <span class="font-bold text-slate-800 dark:text-slate-200 block">⑤ ベースアドレス指定方式</span>
+                        <p class="text-slate-500 dark:text-slate-400">オペランド値 ＋ ベースレジスタ（プログラム先頭アドレス）の値 ＝ 実効アドレス。<strong>プログラムの再配置（リロケータブル）</strong>を容易にする。</p>
+                    </div>
+                    <div class="space-y-1">
+                        <span class="font-bold text-slate-800 dark:text-slate-200 block">⑥ 相対アドレス指定方式</span>
+                        <p class="text-slate-500 dark:text-slate-400">オペランド値 ＋ プログラムカウンタの値 ＝ 実効アドレス。</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- クイズアプリケーションロジック -->
+    <script>
+        // クイズ問題データ
+        const questions = [
+            {
+                id: 1,
+                question: "企業の基幹業務（販売、在庫、財務会計など）を直接支援し、停止すると企業活動全体に甚大な影響を及ぼすため、24時間365日の高水準な安定稼働が求められるシステムを何と呼びますか。",
+                options: ["情報系システム", "基幹系システム", "基盤系システム", "制御系システム"],
+                answer: "基幹系システム",
+                explanation: "企業の主要な事業・経済活動に直結する業務システムを「基幹系システム（またはミッションクリティカルシステム）」と呼び、一時的な停止も許されません。一方、電子メールや社内SNSなどは「情報系システム」に分類されます。"
+            },
+            {
+                id: 2,
+                question: "コンピュータの5大装置において、記憶装置からプログラムの命令を取り出して解読し、それに基づいてコンピュータ全体の動作を制御するための信号を送る役割を担う装置はどれですか。",
+                options: ["演算装置", "入力装置", "制御装置", "出力装置"],
+                answer: "制御装置",
+                explanation: "「制御装置」は、メモリから命令を取り出して解析し、他の各装置（演算・記憶・入力・出力）に指令（制御信号）を伝える役割を持ちます。CPUは制御装置と演算装置から構成されます。"
+            },
+            {
+                id: 3,
+                question: "ノイマン型コンピュータの設計思想における主要な特徴の一つで、実行するプログラムを実行前にあらかじめ主記憶装置（メインメモリ）にロードしておき、それを順次読み出して実行する方式を何と呼びますか。",
+                options: ["直接実行方式", "プログラム内蔵方式", "スタックロード方式", "逐次変換方式"],
+                answer: "プログラム内蔵方式",
+                explanation: "実行するプログラムをあらかじめ主記憶に格納しておくこの方式は「プログラム内蔵方式（またはストアードプログラム方式）」と呼ばれます。これにより、配線を変更することなくプログラムを差し替えて様々な処理ができるようになります。"
+            },
+            {
+                id: 4,
+                question: "CPUを構成するレジスタのうち、次に実行すべき命令が格納されている主記憶上のアドレス（メモリ番地）を常に保持する、プログラムの順番実行の要となるレジスタはどれですか。",
+                options: ["命令レジスタ (IR)", "プログラムカウンタ (PC)", "アキュムレータ (AC)", "ベースレジスタ"],
+                answer: "プログラムカウンタ (PC)",
+                explanation: "プログラムカウンタ (PC) は、「次に」実行すべき命令のメモリアドレスを指し示している特別なレジスタです。命令を1つ取り出すたびに、自動的に次のアドレスを指すように＋1加算されます。"
+            },
+            {
+                id: 5,
+                question: "CPUがプログラムを実行する基本ステップ（命令実行サイクル）において、命令レジスタ（IR）にロードされた機械語の命令コードを解析して、どの演算装置やデータを使うかを判定するステップはどれですか。",
+                options: ["命令の取り出し (フェッチ)", "命令の解読 (デコード)", "対象データの読み出し", "命令の実行"],
+                answer: "命令の解読 (デコード)",
+                explanation: "命令実行サイクルは、「命令の取り出し（フェッチ）」➔「命令の解読（デコード）」➔「対象データ（オペランド）の読み出し」➔「命令の実行」の順でループします。命令のコードを読み解く段階はデコードと呼ばれ、命令デコーダが担当します。"
+            },
+            {
+                id: 6,
+                question: "機械語のアドレス指定方式において、命令の「オペランド（アドレス情報）」部に、処理の対象となる実データそのものが直接書き込まれており、主記憶装置（メモリ）へのアクセスが一切発生しない、最も処理が高速な方式はどれですか。",
+                options: ["直接アドレス指定", "間接アドレス指定", "即値アドレス指定", "相対アドレス指定"],
+                answer: "即値アドレス指定",
+                explanation: "即値（そくち）アドレス指定方式では、オペランドに「データ値そのもの」が直接入っているため、メモリへデータを読み出しに行く手間がかかりません。そのため、もっとも高速に命令を処理することができます。"
+            },
+            {
+                id: 7,
+                question: "オペランド部の値に「インデックス（指標）レジスタ」の格納値を加算して実効アドレス（実際のメモリアドレス）を割り出す方式は、プログラム上でどのようなデータ処理を実行するのに最も効率的ですか。",
+                options: ["再配置可能プログラムの呼出し", "配列の繰り返し処理", "サブルーチンのジャンプ処理", "不揮発データの一時セーブ"],
+                answer: "配列の繰り返し処理",
+                explanation: "インデックスアドレス指定方式は、等間隔に並んだアドレス領域を扱うのに適しています。インデックスレジスタの数値をループごとに増減（例: +1ずつ）させるだけで、配列データの要素に順番にアクセスすることができます。"
+            },
+            {
+                id: 8,
+                question: "プログラムの「ロードされた先頭アドレス」を保持するベースレジスタ値と、オペランド部の相対的な位置情報（差分）を加算してアドレスを特定する方式が、最も直接的に貢献する特徴はどれですか。",
+                options: ["メモリの揮発性の防止", "演算速度の超高速化", "プログラムの再配置（リロケータブル）の容易化", "マルチコアによる並行分散処理"],
+                answer: "プログラムの再配置（リロケータブル）の容易化",
+                explanation: "ベースアドレス指定方式は、メモリ上のどこにプログラムがロードされても「ベースレジスタに先頭アドレスを代入する」だけで、プログラム内のコードを変更せずに実効アドレスを計算できます。これを「再配置可能（リロケータブル）」と呼びます。"
+            },
+            {
+                id: 9,
+                question: "コンピュータにおける「主記憶装置」と「補助記憶装置（SSDやHDDなど）」の一般的な関係性や比較について、最も適切な説明はどれですか。",
+                options: [
+                    "主記憶装置は補助記憶装置よりも動作速度が速く、電源が切れてもデータは消去されない。",
+                    "補助記憶装置は主記憶装置よりも一般的に大容量で、動作速度が速い。",
+                    "主記憶装置は補助記憶装置に比べてアクセスが高速であるが、容量あたり高価であり、電源が切れると中身が消える特性（揮発性）を持つ。",
+                    "補助記憶装置には、CPUが直接指示を送り、命令コードを1つずつ取り出す。"
+                ],
+                answer: "主記憶装置は補助記憶装置に比べてアクセスが高速であるが、容量あたり高価であり、電源が切れると中身が消える特性（揮発性）を持つ。",
+                explanation: "主記憶装置（メモリ）は、CPUが直接データをやり取りするため非常に高速ですが、電源を切るとデータが消えてしまう揮発性という性質があります。そのため、長期保管したいデータは不揮発性の「補助記憶装置（SSDやHDD）」に記憶しておきます。"
+            },
+            {
+                id: 10,
+                question: "「相対アドレス指定方式」において、プログラム内で現在位置からの距離を用いて実効アドレスを計算するために、加算対象として用いられるレジスタはどれですか。",
+                options: ["ベースレジスタ", "インデックスレジスタ", "プログラムカウンタ", "アキュムレータ"],
+                answer: "プログラムカウンタ",
+                explanation: "相対アドレス指定方式は、次に実行するべきアドレスを示す「プログラムカウンタ (PC)」の値を基準（足し合わせる基準）とします。これにより、プログラム自身の現在いる実行位置からの相対距離でアドレスを表現することができます。"
+            }
+        ];
+
+        // アプリケーションの状態管理
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let answeredQuestions = []; // 各設問のユーザー解答履歴
+
+        // タブ切り替え関数
+        function switchTab(tabName) {
+            const quizView = document.getElementById('quiz-view');
+            const summaryView = document.getElementById('summary-view');
+            const tabQuizBtn = document.getElementById('tab-quiz');
+            const tabSummaryBtn = document.getElementById('tab-summary');
+
+            if (tabName === 'quiz') {
+                quizView.classList.remove('hidden');
+                summaryView.classList.add('hidden');
+                
+                // タブデザイン更新
+                tabQuizBtn.className = "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all shadow-sm bg-white dark:bg-slate-600 text-slate-800 dark:text-white";
+                tabSummaryBtn.className = "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white";
+            } else {
+                quizView.classList.add('hidden');
+                summaryView.classList.remove('hidden');
+                
+                // タブデザイン更新
+                tabQuizBtn.className = "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white";
+                tabSummaryBtn.className = "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all shadow-sm bg-white dark:bg-slate-600 text-slate-800 dark:text-white";
+            }
+        }
+
+        // クイズの初期表示
+        function displayQuestion() {
+            const currentQuestion = questions[currentQuestionIndex];
+            
+            // 進捗の更新
+            document.getElementById('current-question-num').innerText = currentQuestionIndex + 1;
+            document.getElementById('total-questions-num').innerText = questions.length;
+            
+            const progressPercent = ((currentQuestionIndex + 1) / questions.length) * 100;
+            document.getElementById('quiz-progress-bar').style.width = `${progressPercent}%`;
+
+            // 正答率の計算と表示
+            const accuracy = currentQuestionIndex === 0 ? 0 : Math.round((score / currentQuestionIndex) * 100);
+            document.getElementById('current-accuracy').innerText = accuracy;
+
+            // クイズカード内容更新
+            document.getElementById('question-text').innerText = currentQuestion.question;
+
+            // 選択肢ボタンのクリア＆再構築
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+
+            currentQuestion.options.forEach((option) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-[0.98] transition font-medium text-sm text-slate-800 dark:text-slate-200 flex items-center justify-between";
+                btn.innerHTML = `
+                    <span>${option}</span>
+                    <span class="w-5 h-5 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center flex-shrink-0 text-transparent text-xxs"></span>
+                `;
+                btn.onclick = () => selectOption(option, btn);
+                optionsContainer.appendChild(btn);
+            });
+
+            // フィードバックパネルをリセット
+            document.getElementById('feedback-panel').classList.add('hidden');
+            document.getElementById('quiz-card').classList.remove('opacity-60');
+        }
+
+        // 選択肢の選択処理
+        function selectOption(selectedOption, buttonElement) {
+            const currentQuestion = questions[currentQuestionIndex];
+            const isCorrect = selectedOption === currentQuestion.answer;
+            
+            // ボタンを無効化
+            const buttons = document.querySelectorAll('#options-container button');
+            buttons.forEach(btn => btn.disabled = true);
+
+            // 正解・不正解の集計
+            if (isCorrect) {
+                score++;
+                buttonElement.className = "w-full text-left p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 font-semibold text-sm text-emerald-800 dark:text-emerald-300 flex items-center justify-between transition-all";
+                buttonElement.querySelector('span:last-child').className = "w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 text-white text-xxs font-bold";
+                buttonElement.querySelector('span:last-child').innerHTML = "✓";
+            } else {
+                buttonElement.className = "w-full text-left p-4 rounded-xl border-2 border-rose-500 bg-rose-50/50 dark:bg-rose-950/20 font-semibold text-sm text-rose-800 dark:text-rose-300 flex items-center justify-between transition-all";
+                buttonElement.querySelector('span:last-child').className = "w-5 h-5 rounded-full bg-rose-500 flex items-center justify-center flex-shrink-0 text-white text-xxs font-bold";
+                buttonElement.querySelector('span:last-child').innerHTML = "✕";
+
+                // 正解のボタンを目立たせる
+                buttons.forEach(btn => {
+                    if (btn.innerText.trim() === currentQuestion.answer) {
+                        btn.className = "w-full text-left p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/10 font-semibold text-sm text-emerald-700 dark:text-emerald-400 flex items-center justify-between transition-all";
+                    }
+                });
+            }
+
+            // 回答履歴への保存
+            answeredQuestions.push({
+                question: currentQuestion.question,
+                userAnswer: selectedOption,
+                correctAnswer: currentQuestion.answer,
+                userIsCorrect: isCorrect
+            });
+
+            // フィードバックパネルの表示
+            showFeedback(isCorrect, currentQuestion.explanation);
+        }
+
+        // フィードバック表示
+        function showFeedback(isCorrect, explanation) {
+            const feedbackPanel = document.getElementById('feedback-panel');
+            const feedbackIcon = document.getElementById('feedback-icon');
+            const feedbackTitle = document.getElementById('feedback-title');
+            const explanationText = document.getElementById('explanation-text');
+
+            feedbackPanel.classList.remove('hidden');
+            document.getElementById('quiz-card').classList.add('opacity-60');
+
+            if (isCorrect) {
+                feedbackPanel.className = "fade-in p-5 rounded-2xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/30 dark:bg-emerald-950/10 flex flex-col space-y-2";
+                feedbackIcon.className = "p-1.5 rounded-xl bg-emerald-500 text-white flex-shrink-0";
+                feedbackIcon.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4"></path></svg>`;
+                feedbackTitle.className = "text-base font-bold text-emerald-800 dark:text-emerald-400";
+                feedbackTitle.innerText = "正解です！";
+            } else {
+                feedbackPanel.className = "fade-in p-5 rounded-2xl border border-rose-200 dark:border-rose-900 bg-rose-50/30 dark:bg-rose-950/10 flex flex-col space-y-2";
+                feedbackIcon.className = "p-1.5 rounded-xl bg-rose-500 text-white flex-shrink-0";
+                feedbackIcon.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+                feedbackTitle.className = "text-base font-bold text-rose-800 dark:text-rose-400";
+                feedbackTitle.innerText = "不正解です";
+            }
+
+            explanationText.innerText = explanation;
+
+            // ボタンクリックイベントを設定
+            document.getElementById('next-btn').onclick = handleNext;
+        }
+
+        // 「次の問題」ボタン処理
+        function handleNext() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < questions.length) {
+                displayQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        // 結果画面の表示
+        function showResults() {
+            document.getElementById('quiz-progress-panel').classList.add('hidden');
+            document.getElementById('quiz-card').classList.add('hidden');
+            document.getElementById('feedback-panel').classList.add('hidden');
+            
+            const resultsPanel = document.getElementById('results-panel');
+            resultsPanel.classList.remove('hidden');
+
+            const finalAccuracy = Math.round((score / questions.length) * 100);
+            document.getElementById('result-score').innerText = score;
+            document.getElementById('result-accuracy').innerText = finalAccuracy;
+
+            // スコアに応じたコメントの出し分け
+            const commentBox = document.getElementById('results-comment');
+            if (score === 10) {
+                commentBox.className = "p-4 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-400 rounded-xl text-sm font-medium leading-relaxed";
+                commentBox.innerText = "素晴らしい！パーフェクト達成です。コンピュータの仕組みは完璧にマスタできています！";
+            } else if (score >= 8) {
+                commentBox.className = "p-4 bg-blue-50 dark:bg-blue-950/30 text-blue-800 dark:text-blue-400 rounded-xl text-sm font-medium leading-relaxed";
+                commentBox.innerText = "合格点クリアです！よく理解できています。この調子で学習をすすめましょう！";
+            } else {
+                commentBox.className = "p-4 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-400 rounded-xl text-sm font-medium leading-relaxed";
+                commentBox.innerText = "もう少しですね！要約カンペを見返して、間違えたポイントを復習してみましょう。";
+            }
+
+            // 間違えた問題のレビューリスト作成
+            const incorrectList = document.getElementById('incorrect-questions-list');
+            const reviewSection = document.getElementById('incorrect-review-section');
+            incorrectList.innerHTML = '';
+
+            const incorrects = answeredQuestions.filter(q => !q.userIsCorrect);
+            if (incorrects.length > 0) {
+                reviewSection.classList.remove('hidden');
+                incorrects.forEach(q => {
+                    const div = document.createElement('div');
+                    div.className = "p-3 bg-slate-50 dark:bg-slate-700/30 border border-slate-100 dark:border-slate-700 rounded-xl text-xs space-y-1";
+                    div.innerHTML = `
+                        <p class="font-bold text-slate-700 dark:text-slate-300">${q.question}</p>
+                        <p class="text-rose-600 dark:text-rose-400">あなたの回答: ${q.userAnswer}</p>
+                        <p class="text-emerald-600 dark:text-emerald-400 font-semibold">正解: ${q.correctAnswer}</p>
+                    `;
+                    incorrectList.appendChild(div);
+                });
+            } else {
+                reviewSection.classList.add('hidden');
+            }
+        }
+
+        // クイズのリスタート
+        function restartQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            answeredQuestions = [];
+            
+            document.getElementById('quiz-progress-panel').classList.remove('hidden');
+            document.getElementById('quiz-card').classList.remove('hidden');
+            document.getElementById('results-panel').classList.add('hidden');
+
+            displayQuestion();
+        }
+
+        // ページロード時の初期化
+        window.onload = function() {
+            displayQuestion();
+        }
+    </script>
+</body>
+</html>
