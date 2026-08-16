@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>東京グルメ図鑑 〜未開拓エリアの霧を払え〜</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary-bg: #121820;
+            --sidebar-bg: #1a222d;
+            --card-bg: #242f3e;
+            --accent-gold: #f39c12;
+            --accent-blue: #3498db;
+            --accent-green: #2ecc71;
+            --text-main: #ecf0f1;
+            --text-sub: #95a5a6;
+            --border-color: #2c3e50;
+            --sidebar-width: 400px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            display: flex;
+            height: 100vh;
+            background-color: var(--primary-bg);
+            color: var(--text-main);
+            overflow: hidden;
+        }
+
+        /* Map Area */
+        #map-container {
+            flex: 1;
+            position: relative;
+            height: 100%;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #0d1117;
+        }
+
+        .toast-banner {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(26, 34, 45, 0.92);
+            border: 1px solid var(--border-color);
+            padding: 12px 16px;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            max-width: 380px;
+        }
+
+        .toast-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--accent-gold);
+            margin-bottom: 4px;
+        }
+
+        .toast-desc {
+            font-size: 11px;
+            color: var(--text-sub);
+            line-height: 1.4;
+        }
+
+        /* Sidebar UI */
+        #sidebar {
+            width: var(--sidebar-width);
+            background: var(--sidebar-bg);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .header {
+            padding: 16px 20px;
+            background: #111720;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header h1 {
+            font-size: 18px;
+            color: #fff;
+            margin-bottom: 2px;
+        }
+
+        .header p {
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        .api-key-box {
+            padding: 10px 20px;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 8px;
+        }
+
+        .api-key-box input {
+            flex: 1;
+            background: #10141b;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px 10px;
+            color: #fff;
+            font-size: 11px;
+        }
+
+        .api-key-box button {
+            background: var(--accent-blue);
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* Stats Section */
+        .stats-section {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(255,255,255,0.02);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-sub);
+            margin-bottom: 6px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #10141b;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e67e22, #f39c12);
+            width: 0%;
+            transition: width 0.6s ease;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-card-val {
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--accent-gold);
+        }
+
+        .stat-card-lbl {
+            font-size: 10px;
+            color: var(--text-sub);
+        }
+
+        /* Action Panel */
+        .action-panel {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-color);
+            background: #151c25;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-gps {
+            background: var(--accent-blue);
+            color: #fff;
+        }
+
+        .timer-display {
+            display: none;
+            background: rgba(230, 126, 34, 0.15);
+            border: 1px solid var(--accent-gold);
+            border-radius: 6px;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .timer-time {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--accent-gold);
+            font-family: monospace;
+        }
+
+        /* Scroll Area */
+        .scroll-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+
+        /* Shop List UI */
+        .shop-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .shop-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .shop-img {
+            width: 60px;
+            height: 60px;
+            border-radius: 6px;
+            object-fit: cover;
+        }
+
+        .shop-info {
+            flex: 1;
+        }
+
+        .shop-name {
+            font-size: 13px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 2px;
+        }
+
+        .shop-meta {
+            font-size: 10px;
+            color: var(--text-sub);
+            margin-bottom: 4px;
+        }
+
+        .btn-stay {
+            background: var(--accent-gold);
+            color: #fff;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .badge-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .badge-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.35;
+        }
+
+        .badge-card.unlocked {
+            opacity: 1;
+            border-color: var(--accent-gold);
+            background: rgba(243, 156, 18, 0.08);
+        }
+
+        .tag-opendata {
+            display: inline-block;
+            background: rgba(52, 152, 219, 0.2);
+            color: var(--accent-blue);
+            font-size: 9px;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .log-card {
+            background: var(--card-bg);
+            border-radius: 6px;
+            padding: 8px 10px;
+            border-left: 3px solid var(--accent-blue);
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+
+        .log-time {
+            font-size: 9px;
+            color: var(--text-sub);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map-container">
+        <div class="toast-banner">
+            <div class="toast-title">📍 位置情報 ＆ 滞在記録モード</div>
+            <div class="toast-desc">
+                GPSで現在地を取得し、周辺の店舗を選択して滞在チェックインを行ってください。ズームしても半径500mの解明エリアは正しく維持されます。
+            </div>
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <div id="sidebar">
+        <div class="header">
+            <h1>🗺️ 東京グルメ図鑑</h1>
+            <p>都知事杯オープンデータハッカソン完全版</p>
+        </div>
+
+        <div class="api-key-box">
+            <input type="text" id="api-key-input" placeholder="ホットペッパー APIキー (省略時はモックデータ)">
+            <button onclick="saveApiKey()">適用</button>
+        </div>
+
+        <div class="stats-section">
+            <div class="stat-header">
+                <span>エリア開拓率</span>
+                <strong id="exploration-rate-text">0.0%</strong>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <div class="stat-card-val" id="cleared-area-val">0.00 km²</div>
+                    <div class="stat-card-lbl">解明済み面積</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-val" id="visited-count-val">0 店舗</div>
+                    <div class="stat-card-lbl">滞在記録数</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-panel">
+            <button class="btn-action btn-gps" onclick="getMyLocationAndFetchShops()">
+                📡 現在地のGPSを取得して周辺の店を探す
+            </button>
+            <div class="timer-display" id="timer-display">
+                <div class="timer-time" id="timer-countdown">00:10</div>
+                <div style="font-size: 10px; color: var(--text-sub);">滞在判定中... エリアから移動しないでください</div>
+            </div>
+        </div>
+
+        <div class="scroll-area">
+            <div class="section-title">🍽️ 周辺の飲食店 (選択して滞在記録)</div>
+            <div class="shop-list" id="nearby-shop-list">
+                <div style="font-size:11px; color:var(--text-sub);">GPS取得ボタンを押すと、周囲500mの店舗が表示されます。</div>
+            </div>
+
+            <div class="section-title">🏆 獲得実績（オープンデータマージ）</div>
+            <div class="badge-grid">
+                <div class="badge-card" id="badge-1">
+                    <div>👣</div>
+                    <div>
+                        <div style="font-size:11px; font-weight:bold;">第一歩</div>
+                        <div style="font-size:9px; color:var(--text-sub);">最初の霧を解除</div>
+                    </div>
+                </div>
+                <div class="badge-card" id="badge-2">
+                    <div>⛩️</div>
+                    <div>
+                        <div style="font-size:11px; font-weight:bold;">文化財ハンター</div>
+                        <div style="font-size:9px; color:var(--text-sub);">史跡・文化財隣接店舗</div>
+                    </div>
+                </div>
+                <div class="badge-card" id="badge-3">
+                    <div>🏪</div>
+                    <div>
+                        <div style="font-size:11px; font-weight:bold;">商店街の味方</div>
+                        <div style="font-size:9px; color:var(--text-sub);">商店街OD加盟店</div>
+                    </div>
+                </div>
+                <div class="badge-card" id="badge-4">
+                    <div>☕</div>
+                    <div>
+                        <div style="font-size:11px; font-weight:bold;">カフェ制覇</div>
+                        <div style="font-size:9px; color:var(--text-sub);">カフェ・スイーツ開拓</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-title">📜 滞在履歴 & アクティビティ</div>
+            <div id="log-list"></div>
+        </div>
+    </div>
+
+    <!-- Leaflet & Turf.js -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+    <script>
+        let map;
+        let fogLayer = null;
+        let userMarker = null;
+        let userPos = [35.6980, 139.7730]; // 初期座標：神田
+        let apiKey = "";
+
+        let clearedPolygons = [];
+        let totalClearedAreaKm2 = 0;
+        const TARGET_TOTAL_AREA_KM2 = 30.0;
+
+        let nearbyShops = [];
+        let visitedHistory = [];
+        let unlockedBadges = new Set();
+        let stayTimer = null;
+
+        // モックデータベース（ホットペッパーAPI ＋ 東京都オープンデータ マージ想定）
+        const mockHotpepperDatabase = [
+            { id: "hp_1", lat: 35.6980, lng: 139.7730, name: "神田カレー老舗 萬満軒", genre: "カレー・和食", img: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=150", isShoppingStreet: true, shoppingStreetName: "神田駅前商店街" },
+            { id: "hp_2", lat: 35.7005, lng: 139.7715, name: "秋葉原 昭和レトロ喫茶", genre: "カフェ・軽食", img: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=150", isCultural: true, culturalName: "秋葉原発祥の地碑" },
+            { id: "hp_3", lat: 35.6950, lng: 139.7760, name: "岩本町 和菓子職人工房", genre: "カフェ・スイーツ", img: "https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=150", isShoppingStreet: true, shoppingStreetName: "岩本町和物商店街" },
+            { id: "hp_4", lat: 35.6990, lng: 139.7680, name: "神田明神前 門前そば", genre: "和食・蕎麦", img: "https://images.unsplash.com/photo-1617196034796-73dfa7b1fd56?w=150", isShoppingStreet: true, isCultural: true, culturalName: "東京都指定文化財 神田明神" },
+            { id: "hp_5", lat: 35.6930, lng: 139.7710, name: "高架下ビストロ TOKYO", genre: "洋食・バル", img: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=150" }
+        ];
+
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView(userPos, 15);
+            L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 18,
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(map);
+
+            userMarker = L.circleMarker(userPos, {
+                radius: 8,
+                fillColor: '#3498db',
+                color: '#ffffff',
+                weight: 3,
+                fillOpacity: 1
+            }).addTo(map).bindPopup("<b>現在地</b>");
+
+            renderGeographicFog();
+            addLog("システム初期化完了。GPSボタンを押して探検を開始してください。");
+        }
+
+        // 真の地理座標（500mポリゴン）を用いた霧の描画処理
+        function renderGeographicFog() {
+            if (fogLayer) map.removeLayer(fogLayer);
+
+            const worldBox = turf.bboxPolygon([139.50, 35.50, 139.95, 35.85]);
+            let combinedCleared = null;
+
+            if (clearedPolygons.length > 0) {
+                clearedPolygons.forEach(poly => {
+                    combinedCleared = combinedCleared ? turf.union(combinedCleared, poly) : poly;
+                });
+            }
+
+            const finalFogPoly = combinedCleared ? turf.difference(worldBox, combinedCleared) : worldBox;
+
+            fogLayer = L.geoJSON(finalFogPoly, {
+                style: {
+                    fillColor: '#0a0d12',
+                    fillOpacity: 0.88,
+                    color: '#1a222d',
+                    weight: 1
+                }
+            }).addTo(map);
+        }
+
+        function saveApiKey() {
+            apiKey = document.getElementById('api-key-input').value.trim();
+            addLog(apiKey ? "🔑 ホットペッパー APIキーを設定しました。" : "ℹ️ モックデータモードで動作します。");
+        }
+
+        // 1. GPS取得と周辺店舗の抽出
+        function getMyLocationAndFetchShops() {
+            addLog("📡 GPSで現在地を取得中...");
+
+            if (!navigator.geolocation) {
+                alert("位置情報に対応していません。デフォルト位置で検索します。");
+                fetchNearbyRestaurants(userPos[0], userPos[1]);
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    userPos = [pos.coords.latitude, pos.coords.longitude];
+                    map.setView(userPos, 16);
+                    userMarker.setLatLng(userPos);
+                    addLog(`📍 現在地を取得 (${userPos[0].toFixed(4)}, ${userPos[1].toFixed(4)})`);
+                    fetchNearbyRestaurants(userPos[0], userPos[1]);
+                },
+                () => {
+                    addLog("⚠️ GPS取得失敗。デフォルトの神田エリアで検索します。");
+                    fetchNearbyRestaurants(userPos[0], userPos[1]);
+                }
+            );
+        }
+
+        // 2. 周辺店舗の計算と表示
+        function fetchNearbyRestaurants(lat, lng) {
+            const userPoint = turf.point([lng, lat]);
+
+            nearbyShops = mockHotpepperDatabase.map(shop => {
+                const shopPoint = turf.point([shop.lng, shop.lat]);
+                const distKm = turf.distance(userPoint, shopPoint, { units: 'kilometers' });
+                return { ...shop, distance: Math.round(distKm * 1000) };
+            }).sort((a, b) => a.distance - b.distance);
+
+            renderNearbyShopList();
+        }
+
+        // 3. サイドバー＆マップへの店舗描画
+        function renderNearbyShopList() {
+            const container = document.getElementById('nearby-shop-list');
+            container.innerHTML = "";
+
+            nearbyShops.forEach(shop => {
+                // 地図ピン
+                const marker = L.marker([shop.lat, shop.lng]).addTo(map);
+                marker.bindPopup(`
+                    <b>${shop.name}</b><br>
+                    現在地から ${shop.distance}m<br>
+                    <button onclick="startStayVerification('${shop.id}')" style="margin-top:5px; padding:4px 8px; background:#e67e22; color:#fff; border:none; border-radius:4px; cursor:pointer;">
+                        この店舗で滞在記録
+                    </button>
+                `);
+
+                // サイドバーカード
+                const card = document.createElement('div');
+                card.className = "shop-card";
+                card.innerHTML = `
+                    <img src="${shop.img}" class="shop-img">
+                    <div class="shop-info">
+                        <div class="shop-name">${shop.name}</div>
+                        <div class="shop-meta">${shop.genre} • 距離 ${shop.distance}m</div>
+                        ${shop.isShoppingStreet ? `<span class="tag-opendata">商店街: ${shop.shoppingStreetName}</span>` : ''}
+                        ${shop.isCultural ? `<span class="tag-opendata">文化財: ${shop.culturalName}</span>` : ''}
+                    </div>
+                    <button class="btn-stay" onclick="startStayVerification('${shop.id}')">滞在記録</button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // 4. 滞在判定タイマーとチェックイン処理
+        function startStayVerification(shopId) {
+            const selectedShop = nearbyShops.find(s => s.id === shopId);
+            if (!selectedShop) return;
+
+            const timerDisplay = document.getElementById('timer-display');
+            const timerCountdown = document.getElementById('timer-countdown');
+            timerDisplay.style.display = 'block';
+
+            let timeLeft = 10; // デモ用10秒タイマー（本番10分）
+            addLog(`⏱️ 「${selectedShop.name}」の滞在判定を開始...`);
+
+            if (stayTimer) clearInterval(stayTimer);
+
+            stayTimer = setInterval(() => {
+                timeLeft--;
+                timerCountdown.innerText = `00:${String(timeLeft).padStart(2,'0')}`;
+
+                if (timeLeft <= 0) {
+                    clearInterval(stayTimer);
+                    timerDisplay.style.display = 'none';
+                    recordStaySuccess(selectedShop);
+                }
+            }, 1000);
+        }
+
+        // 5. 滞在成功・霧解除・実績更新
+        function recordStaySuccess(shop) {
+            // 履歴追加
+            visitedHistory.push({ shopName: shop.name, time: new Date() });
+
+            // 選択した店舗を中心に半径500mの霧を解除
+            const shopCenter = turf.point([shop.lng, shop.lat]);
+            const clearedCircle = turf.buffer(shopCenter, 0.5, { units: 'kilometers' });
+            clearedPolygons.push(clearedCircle);
+
+            const addedAreaKm2 = turf.area(clearedCircle) / 1000000;
+            totalClearedAreaKm2 += addedAreaKm2;
+
+            renderGeographicFog();
+
+            // 実績判定
+            triggerBadge(1);
+            if (shop.isCultural) triggerBadge(2);
+            if (shop.isShoppingStreet) triggerBadge(3);
+            if (shop.genre.includes("カフェ")) triggerBadge(4);
+
+            addLog(`✅ 【滞在記録完了】「${shop.name}」周辺の霧を解除しました！ (+${addedAreaKm2.toFixed(2)}km²)`, shop.isShoppingStreet ? `商店街OD: ${shop.shoppingStreetName}` : null);
+            updateUIStats();
+        }
+
+        function triggerBadge(id) {
+            if (!unlockedBadges.has(id)) {
+                unlockedBadges.add(id);
+                const badgeEl = document.getElementById(`badge-${id}`);
+                if (badgeEl) badgeEl.classList.add('unlocked');
+            }
+        }
+
+        function updateUIStats() {
+            const rate = Math.min((totalClearedAreaKm2 / TARGET_TOTAL_AREA_KM2) * 100, 100).toFixed(1);
+            document.getElementById('exploration-rate-text').innerText = `${rate}%`;
+            document.getElementById('progress-fill').style.width = `${rate}%`;
+            document.getElementById('cleared-area-val').innerText = `${totalClearedAreaKm2.toFixed(2)} km²`;
+            document.getElementById('visited-count-val').innerText = `${visitedHistory.length} 店舗`;
+        }
+
+        function addLog(msg, openDataText = null) {
+            const list = document.getElementById('log-list');
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+
+            const card = document.createElement('div');
+            card.className = "log-card";
+            card.innerHTML = `
+                <div class="log-time">${timeStr}</div>
+                <div>${msg}</div>
+                ${openDataText ? `<div class="tag-opendata">${openDataText}</div>` : ''}
+            `;
+            list.prepend(card);
+        }
+
+        window.onload = initMap;
+    </script>
+</body>
+</html>
