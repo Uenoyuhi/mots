@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>東京グルメ図鑑 〜未開拓エリアの霧を払え〜</title>
+    <title>山手線 Fog of War 〜街歩きAIガイド〜</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
-            --primary-bg: #121820;
-            --sidebar-bg: #1a222d;
-            --card-bg: #242f3e;
-            --accent-gold: #f39c12;
-            --accent-blue: #3498db;
-            --accent-green: #2ecc71;
-            --text-main: #ecf0f1;
-            --text-sub: #95a5a6;
-            --border-color: #2c3e50;
-            --sidebar-width: 400px;
+            --primary-bg: #f8f9fa;
+            --sidebar-bg: #ffffff;
+            --card-bg: #f1f3f5;
+            --accent-green: #27ae60;
+            --accent-gold: #d35400;
+            --accent-blue: #2980b9;
+            --text-main: #2c3e50;
+            --text-sub: #7f8c8d;
+            --border-color: #e9ecef;
+            --sidebar-width: 380px;
         }
 
         * {
@@ -35,7 +35,6 @@
             overflow: hidden;
         }
 
-        /* Map Area */
         #map-container {
             flex: 1;
             position: relative;
@@ -45,7 +44,7 @@
         #map {
             width: 100%;
             height: 100%;
-            background: #0d1117;
+            background: #e5e3df;
         }
 
         .toast-banner {
@@ -53,19 +52,19 @@
             top: 20px;
             left: 20px;
             z-index: 1000;
-            background: rgba(26, 34, 45, 0.92);
-            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #cbd5e1;
             padding: 12px 16px;
             border-radius: 10px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
             backdrop-filter: blur(8px);
-            max-width: 380px;
+            max-width: 320px;
         }
 
         .toast-title {
             font-size: 13px;
             font-weight: bold;
-            color: var(--accent-gold);
+            color: var(--accent-green);
             margin-bottom: 4px;
         }
 
@@ -75,7 +74,13 @@
             line-height: 1.4;
         }
 
-        /* Sidebar UI */
+        #log-area {
+            margin-top: 6px;
+            font-size: 10px;
+            color: #2980b9;
+            font-weight: bold;
+        }
+
         #sidebar {
             width: var(--sidebar-width);
             background: var(--sidebar-bg);
@@ -83,153 +88,44 @@
             display: flex;
             flex-direction: column;
             z-index: 1000;
-            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.4);
+            box-shadow: -2px 0 10px rgba(0,0,0,0.05);
         }
 
         .header {
             padding: 16px 20px;
-            background: #111720;
+            background: #ffffff;
             border-bottom: 1px solid var(--border-color);
         }
 
         .header h1 {
             font-size: 18px;
-            color: #fff;
-            margin-bottom: 2px;
+            color: #1a202c;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .header p {
             font-size: 11px;
             color: var(--text-sub);
+            margin-top: 4px;
         }
 
-        .api-key-box {
-            padding: 10px 20px;
-            background: rgba(0,0,0,0.2);
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            gap: 8px;
-        }
-
-        .api-key-box input {
-            flex: 1;
-            background: #10141b;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 6px 10px;
-            color: #fff;
-            font-size: 11px;
-        }
-
-        .api-key-box button {
-            background: var(--accent-blue);
-            color: #fff;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 11px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        /* Stats Section */
-        .stats-section {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border-color);
-            background: rgba(255,255,255,0.02);
-        }
-
-        .stat-header {
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            color: var(--text-sub);
-            margin-bottom: 6px;
+        .progress-bar-container {
+            margin-top: 10px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden;
         }
 
         .progress-bar {
-            height: 8px;
-            background: #10141b;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-bottom: 12px;
-            border: 1px solid var(--border-color);
-        }
-
-        .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #e67e22, #f39c12);
             width: 0%;
-            transition: width 0.6s ease;
+            background: var(--accent-green);
+            transition: width 0.3s ease;
         }
 
-        .stat-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-        }
-
-        .stat-card {
-            background: var(--card-bg);
-            padding: 8px 10px;
-            border-radius: 6px;
-            border: 1px solid var(--border-color);
-        }
-
-        .stat-card-val {
-            font-size: 16px;
-            font-weight: bold;
-            color: var(--accent-gold);
-        }
-
-        .stat-card-lbl {
-            font-size: 10px;
-            color: var(--text-sub);
-        }
-
-        /* Action Panel */
-        .action-panel {
-            padding: 14px 20px;
-            border-bottom: 1px solid var(--border-color);
-            background: #151c25;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .btn-action {
-            width: 100%;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-            transition: all 0.2s;
-        }
-
-        .btn-gps {
-            background: var(--accent-blue);
-            color: #fff;
-        }
-
-        .timer-display {
-            display: none;
-            background: rgba(230, 126, 34, 0.15);
-            border: 1px solid var(--accent-gold);
-            border-radius: 6px;
-            padding: 8px;
-            text-align: center;
-        }
-
-        .timer-time {
-            font-size: 18px;
-            font-weight: bold;
-            color: var(--accent-gold);
-            font-family: monospace;
-        }
-
-        /* Scroll Area */
         .scroll-area {
             flex: 1;
             overflow-y: auto;
@@ -241,108 +137,141 @@
             font-weight: bold;
             color: var(--text-sub);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
             margin-bottom: 10px;
-        }
-
-        /* Shop List UI */
-        .shop-list {
             display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .shop-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 10px;
-            display: flex;
-            gap: 10px;
+            justify-content: space-between;
             align-items: center;
         }
 
-        .shop-img {
-            width: 60px;
-            height: 60px;
-            border-radius: 6px;
-            object-fit: cover;
+        .input-group {
+            margin-bottom: 12px;
         }
 
-        .shop-info {
-            flex: 1;
-        }
-
-        .shop-name {
-            font-size: 13px;
-            font-weight: bold;
-            color: #fff;
-            margin-bottom: 2px;
-        }
-
-        .shop-meta {
-            font-size: 10px;
+        .input-group label {
+            display: block;
+            font-size: 11px;
             color: var(--text-sub);
             margin-bottom: 4px;
         }
 
-        .btn-stay {
-            background: var(--accent-gold);
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 8px 10px;
+            background: #fff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            color: var(--text-main);
+            font-size: 12px;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            background: var(--accent-blue);
+            color: #fff;
+            transition: opacity 0.2s;
+        }
+
+        .btn-action:hover { opacity: 0.9; }
+
+        .ai-plan-card {
+            background: #fffaf0;
+            border: 1px solid var(--accent-gold);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+
+        .ai-plan-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--accent-gold);
+            margin-bottom: 6px;
+        }
+
+        .ai-spot-list {
+            font-size: 11px;
+            line-height: 1.6;
+            color: var(--text-main);
+        }
+
+        .ai-spot-item {
+            margin-bottom: 6px;
+            padding-left: 10px;
+            border-left: 2px solid var(--accent-gold);
+        }
+
+        .btn-unlock {
+            margin-top: 10px;
+            width: 100%;
+            background: var(--accent-green);
             color: #fff;
             border: none;
-            padding: 4px 8px;
+            padding: 8px;
             border-radius: 4px;
-            font-size: 10px;
             font-weight: bold;
+            font-size: 12px;
             cursor: pointer;
         }
 
-        .badge-grid {
+        .station-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 8px;
-            margin-bottom: 20px;
+            margin-top: 10px;
         }
 
-        .badge-card {
-            background: var(--card-bg);
+        .station-card {
+            background: #fff;
             border: 1px solid var(--border-color);
             border-radius: 6px;
-            padding: 8px;
+            padding: 8px 10px;
+            font-size: 12px;
             display: flex;
             align-items: center;
-            gap: 8px;
-            opacity: 0.35;
+            justify-content: space-between;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
 
-        .badge-card.unlocked {
-            opacity: 1;
-            border-color: var(--accent-gold);
-            background: rgba(243, 156, 18, 0.08);
+        .station-card.visited {
+            border-color: var(--accent-green);
+            background: #f0fdf4;
         }
 
-        .tag-opendata {
-            display: inline-block;
-            background: rgba(52, 152, 219, 0.2);
-            color: var(--accent-blue);
-            font-size: 9px;
-            padding: 2px 4px;
-            border-radius: 3px;
-        }
-
-        .log-card {
-            background: var(--card-bg);
-            border-radius: 6px;
-            padding: 8px 10px;
-            border-left: 3px solid var(--accent-blue);
-            font-size: 11px;
-            margin-bottom: 8px;
-        }
-
-        .log-time {
-            font-size: 9px;
+        .badge-status {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: #e2e8f0;
             color: var(--text-sub);
+        }
+
+        .visited .badge-status {
+            background: var(--accent-green);
+            color: #fff;
+        }
+
+        /* Leaflet Marker Accent */
+        .station-marker-icon {
+            background: #718096;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 10px;
+            text-align: center;
+            line-height: 18px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .station-marker-icon.visited {
+            background: #27ae60;
+            box-shadow: 0 0 8px #27ae60;
         }
     </style>
 </head>
@@ -350,96 +279,46 @@
 
     <div id="map-container">
         <div class="toast-banner">
-            <div class="toast-title">📍 位置情報 ＆ 滞在記録モード</div>
+            <div class="toast-title">🚃 山手線 全30駅 開拓マップ</div>
             <div class="toast-desc">
-                GPSで現在地を取得し、周辺の店舗を選択して滞在チェックインを行ってください。ズームしても半径500mの解明エリアは正しく維持されます。
+                23区境界データを読み込んで地図をカバレッジ。訪問することで周辺のフォグ（霧）が解除されます。
             </div>
+            <div id="log-area"></div>
         </div>
         <div id="map"></div>
     </div>
 
     <div id="sidebar">
         <div class="header">
-            <h1>🗺️ 東京グルメ図鑑</h1>
-            <p>都知事杯オープンデータハッカソン完全版</p>
-        </div>
-
-        <div class="api-key-box">
-            <input type="text" id="api-key-input" placeholder="ホットペッパー APIキー (省略時はモックデータ)">
-            <button onclick="saveApiKey()">適用</button>
-        </div>
-
-        <div class="stats-section">
-            <div class="stat-header">
-                <span>エリア開拓率</span>
-                <strong id="exploration-rate-text">0.0%</strong>
+            <h1>🚃 山手線街歩きガイド</h1>
+            <p>全30駅 コンプリート進捗</p>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progress-bar"></div>
             </div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progress-fill"></div>
-            </div>
-
-            <div class="stat-grid">
-                <div class="stat-card">
-                    <div class="stat-card-val" id="cleared-area-val">0.00 km²</div>
-                    <div class="stat-card-lbl">解明済み面積</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-card-val" id="visited-count-val">0 店舗</div>
-                    <div class="stat-card-lbl">滞在記録数</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="action-panel">
-            <button class="btn-action btn-gps" onclick="getMyLocationAndFetchShops()">
-                📡 現在地のGPSを取得して周辺の店を探す
-            </button>
-            <div class="timer-display" id="timer-display">
-                <div class="timer-time" id="timer-countdown">00:10</div>
-                <div style="font-size: 10px; color: var(--text-sub);">滞在判定中... エリアから移動しないでください</div>
-            </div>
+            <div style="font-size:10px; color:var(--text-sub); margin-top:4px; text-align:right;" id="progress-text">0 / 30 駅 (0%)</div>
         </div>
 
         <div class="scroll-area">
-            <div class="section-title">🍽️ 周辺の飲食店 (選択して滞在記録)</div>
-            <div class="shop-list" id="nearby-shop-list">
-                <div style="font-size:11px; color:var(--text-sub);">GPS取得ボタンを押すと、周囲500mの店舗が表示されます。</div>
+            <div class="section-title">🤖 AIコース生成 & アンロック</div>
+            
+            <div class="input-group">
+                <label>目的の駅</label>
+                <select id="select-station" onchange="onStationSelect()"></select>
             </div>
 
-            <div class="section-title">🏆 獲得実績（オープンデータマージ）</div>
-            <div class="badge-grid">
-                <div class="badge-card" id="badge-1">
-                    <div>👣</div>
-                    <div>
-                        <div style="font-size:11px; font-weight:bold;">第一歩</div>
-                        <div style="font-size:9px; color:var(--text-sub);">最初の霧を解除</div>
-                    </div>
-                </div>
-                <div class="badge-card" id="badge-2">
-                    <div>⛩️</div>
-                    <div>
-                        <div style="font-size:11px; font-weight:bold;">文化財ハンター</div>
-                        <div style="font-size:9px; color:var(--text-sub);">史跡・文化財隣接店舗</div>
-                    </div>
-                </div>
-                <div class="badge-card" id="badge-3">
-                    <div>🏪</div>
-                    <div>
-                        <div style="font-size:11px; font-weight:bold;">商店街の味方</div>
-                        <div style="font-size:9px; color:var(--text-sub);">商店街OD加盟店</div>
-                    </div>
-                </div>
-                <div class="badge-card" id="badge-4">
-                    <div>☕</div>
-                    <div>
-                        <div style="font-size:11px; font-weight:bold;">カフェ制覇</div>
-                        <div style="font-size:9px; color:var(--text-sub);">カフェ・スイーツ開拓</div>
-                    </div>
-                </div>
+            <div class="input-group">
+                <label>あなたの好み・気分（チェーン店除外）</label>
+                <input type="text" id="user-preference" placeholder="例: 静かな個人カフェ、路地裏カレー">
             </div>
 
-            <div class="section-title">📜 滞在履歴 & アクティビティ</div>
-            <div id="log-list"></div>
+            <button class="btn-action" onclick="generateAIPlan()">✨ AIでおすすめコースを作成</button>
+
+            <div id="ai-plan-container" style="margin-top:14px; display:none;"></div>
+
+            <div class="section-title" style="margin-top:24px;">
+                📍 駅別ステータス
+            </div>
+            <div class="station-grid" id="station-grid"></div>
         </div>
     </div>
 
@@ -448,232 +327,259 @@
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
     <script>
-        let map;
-        let fogLayer = null;
-        let userMarker = null;
-        let userPos = [35.6980, 139.7730]; // 初期座標：神田
-        let apiKey = "";
-
-        let clearedPolygons = [];
-        let totalClearedAreaKm2 = 0;
-        const TARGET_TOTAL_AREA_KM2 = 30.0;
-
-        let nearbyShops = [];
-        let visitedHistory = [];
-        let unlockedBadges = new Set();
-        let stayTimer = null;
-
-        // モックデータベース（ホットペッパーAPI ＋ 東京都オープンデータ マージ想定）
-        const mockHotpepperDatabase = [
-            { id: "hp_1", lat: 35.6980, lng: 139.7730, name: "神田カレー老舗 萬満軒", genre: "カレー・和食", img: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=150", isShoppingStreet: true, shoppingStreetName: "神田駅前商店街" },
-            { id: "hp_2", lat: 35.7005, lng: 139.7715, name: "秋葉原 昭和レトロ喫茶", genre: "カフェ・軽食", img: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=150", isCultural: true, culturalName: "秋葉原発祥の地碑" },
-            { id: "hp_3", lat: 35.6950, lng: 139.7760, name: "岩本町 和菓子職人工房", genre: "カフェ・スイーツ", img: "https://images.unsplash.com/photo-1559925393-8be0ec4767c8?w=150", isShoppingStreet: true, shoppingStreetName: "岩本町和物商店街" },
-            { id: "hp_4", lat: 35.6990, lng: 139.7680, name: "神田明神前 門前そば", genre: "和食・蕎麦", img: "https://images.unsplash.com/photo-1617196034796-73dfa7b1fd56?w=150", isShoppingStreet: true, isCultural: true, culturalName: "東京都指定文化財 神田明神" },
-            { id: "hp_5", lat: 35.6930, lng: 139.7710, name: "高架下ビストロ TOKYO", genre: "洋食・バル", img: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=150" }
+        const yamanoteStations = [
+            { id: "tokyo", name: "東京", lat: 35.681236, lng: 139.767125 },
+            { id: "kanda", name: "神田", lat: 35.69169, lng: 139.770883 },
+            { id: "akihabara", name: "秋葉原", lat: 35.698683, lng: 139.774219 },
+            { id: "okachimachi", name: "御徒町", lat: 35.707438, lng: 139.774632 },
+            { id: "ueno", name: "上野", lat: 35.713768, lng: 139.777254 },
+            { id: "uguisudani", name: "鶯谷", lat: 35.721456, lng: 139.778013 },
+            { id: "nippori", name: "日暮里", lat: 35.7281, lng: 139.770641 },
+            { id: "nishi_nippori", name: "西日暮里", lat: 35.732135, lng: 139.766787 },
+            { id: "tabata", name: "田端", lat: 35.738158, lng: 139.76084 },
+            { id: "komagome", name: "駒込", lat: 35.736489, lng: 139.746875 },
+            { id: "sugamo", name: "巣鴨", lat: 35.733492, lng: 139.739345 },
+            { id: "otsuka", name: "大塚", lat: 35.731401, lng: 139.728111 },
+            { id: "ikebukuro", name: "池袋", lat: 35.729503, lng: 139.7109 },
+            { id: "mejiro", name: "目白", lat: 35.721204, lng: 139.706584 },
+            { id: "takadanobaba", name: "高田馬場", lat: 35.712285, lng: 139.703782 },
+            { id: "shin_okubo", name: "新大久保", lat: 35.701306, lng: 139.700044 },
+            { id: "shinjuku", name: "新宿", lat: 35.689607, lng: 139.700571 },
+            { id: "yoyogi", name: "代々木", lat: 35.683061, lng: 139.702042 },
+            { id: "harajuku", name: "原宿", lat: 35.670168, lng: 139.702687 },
+            { id: "shibuya", name: "渋谷", lat: 35.658034, lng: 139.701636 },
+            { id: "ebisu", name: "恵比寿", lat: 35.64669, lng: 139.710106 },
+            { id: "meguro", name: "目黒", lat: 35.633998, lng: 139.715828 },
+            { id: "gotanda", name: "五反田", lat: 35.626446, lng: 139.723444 },
+            { id: "osaki", name: "大崎", lat: 35.6197, lng: 139.728553 },
+            { id: "shinagawa", name: "品川", lat: 35.628471, lng: 139.73876 },
+            { id: "takanawa_gateway", name: "高輪ゲートウェイ", lat: 35.635588, lng: 139.74077 },
+            { id: "tamachi", name: "田町", lat: 35.645736, lng: 139.747575 },
+            { id: "hamamatsucho", name: "浜松町", lat: 35.655646, lng: 139.757129 },
+            { id: "shimbashi", name: "新橋", lat: 35.666195, lng: 139.758339 },
+            { id: "yurakucho", name: "有楽町", lat: 35.675069, lng: 139.762864 }
         ];
 
+        let map;
+        let fogLayer = null;
+        let visitedStationIds = new Set(["kanda"]);
+        let stationMarkers = {};
+        let tokyo23BoundaryPoly = null;
+
+        function addLog(msg) {
+            document.getElementById('log-area').textContent = msg;
+        }
+
         function initMap() {
-            map = L.map('map', { zoomControl: false }).setView(userPos, 15);
+            map = L.map('map', { zoomControl: false }).setView([35.6812, 139.7550], 12);
             L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            // 【地図タイル変更】明るい視認性の高い地図タイル（CartoDB Positron / OSM系）
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
                 maxZoom: 18,
-                attribution: '&copy; OpenStreetMap'
+                attribution: '&copy; <a href="https://carto.com/">CARTO</a>'
             }).addTo(map);
 
-            userMarker = L.circleMarker(userPos, {
-                radius: 8,
-                fillColor: '#3498db',
-                color: '#ffffff',
-                weight: 3,
-                fillOpacity: 1
-            }).addTo(map).bindPopup("<b>現在地</b>");
+            // 山手線の環状線を描画
+            const latLngs = yamanoteStations.map(s => [s.lat, s.lng]);
+            latLngs.push([yamanoteStations[0].lat, yamanoteStations[0].lng]);
 
-            renderGeographicFog();
-            addLog("システム初期化完了。GPSボタンを押して探検を開始してください。");
+            L.polyline(latLngs, {
+                color: '#27ae60',
+                weight: 4,
+                opacity: 0.8,
+                dashArray: '6, 6'
+            }).addTo(map);
+
+            initStationsUI();
+            loadTokyo23Boundary();
         }
 
-        // 真の地理座標（500mポリゴン）を用いた霧の描画処理
+        // 23区の GeoJSON を読み込んで統合する関数
+        async function loadTokyo23Boundary() {
+            addLog("⏳ 東京23区の境界データを読み込んでいます...");
+            const targetUrl = 'https://raw.githubusercontent.com/niiyz/JapanCityGeoJson/master/geojson/custom/tokyo23.json';
+
+            try {
+                let response = await fetch('./tokyo23.json').catch(() => null);
+                if (!response || !response.ok) {
+                    response = await fetch(targetUrl);
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP Error: ${response.status}`);
+                }
+
+                const geoData = await response.json();
+
+                let merged = null;
+                geoData.features.forEach(feature => {
+                    if (!merged) {
+                        merged = feature;
+                    } else {
+                        merged = turf.union(merged, feature);
+                    }
+                });
+
+                tokyo23BoundaryPoly = merged;
+                renderGeographicFog();
+                addLog("✅ 東京23区の精密境界データを適用しました！");
+            } catch (e) {
+                console.error(e);
+                addLog("⚠️ 境界データの取得に失敗したため、簡易領域でレンダリングします。");
+                // フォールバック用のポリゴンを作成
+                tokyo23BoundaryPoly = turf.polygon([[
+                    [139.55, 35.52], [139.92, 35.52], [139.92, 35.82], [139.55, 35.82], [139.55, 35.52]
+                ]]);
+                renderGeographicFog();
+            }
+        }
+
+        function initStationsUI() {
+            const selectEl = document.getElementById('select-station');
+            const gridEl = document.getElementById('station-grid');
+
+            yamanoteStations.forEach(st => {
+                const opt = document.createElement('option');
+                opt.value = st.id;
+                opt.textContent = `${st.name}駅`;
+                selectEl.appendChild(opt);
+
+                const isVisited = visitedStationIds.has(st.id);
+                const markerIcon = L.divIcon({
+                    className: `station-marker-icon ${isVisited ? 'visited' : ''}`,
+                    html: `●`,
+                    iconSize: [20, 20]
+                });
+
+                const marker = L.marker([st.lat, st.lng], { icon: markerIcon }).addTo(map);
+                marker.bindPopup(`
+                    <div style="color:#333;">
+                        <b>${st.name}駅</b><br>
+                        ${isVisited ? '✅ 訪問済み' : '🔒 未訪問'}<br>
+                        <button onclick="toggleStationVisit('${st.id}')" style="margin-top:6px; background:#27ae60; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">
+                            ${isVisited ? '未訪問に戻す' : '訪問（アンロック）'}
+                        </button>
+                    </div>
+                `);
+                stationMarkers[st.id] = marker;
+
+                const card = document.createElement('div');
+                card.id = `card-${st.id}`;
+                card.className = `station-card ${isVisited ? 'visited' : ''}`;
+                card.onclick = () => {
+                    map.setView([st.lat, st.lng], 14);
+                    selectEl.value = st.id;
+                };
+                card.innerHTML = `
+                    <span>${st.name}</span>
+                    <span class="badge-status">${isVisited ? '解明' : '未'}</span>
+                `;
+                gridEl.appendChild(card);
+            });
+            updateProgress();
+        }
+
         function renderGeographicFog() {
             if (fogLayer) map.removeLayer(fogLayer);
+            if (!tokyo23BoundaryPoly) return;
 
-            const worldBox = turf.bboxPolygon([139.50, 35.50, 139.95, 35.85]);
-            let combinedCleared = null;
+            // 解明範囲（円）の合成
+            let clearedUnion = null;
+            visitedStationIds.forEach(stId => {
+                const st = yamanoteStations.find(s => s.id === stId);
+                if (st) {
+                    const center = turf.point([st.lng, st.lat]);
+                    const circle = turf.buffer(center, 0.8, { units: 'kilometers' });
+                    clearedUnion = clearedUnion ? turf.union(clearedUnion, circle) : circle;
+                }
+            });
 
-            if (clearedPolygons.length > 0) {
-                clearedPolygons.forEach(poly => {
-                    combinedCleared = combinedCleared ? turf.union(combinedCleared, poly) : poly;
-                });
+            // 23区境界から訪問済みエリアを切り抜く
+            let fogPoly = tokyo23BoundaryPoly;
+            if (clearedUnion) {
+                const diff = turf.difference(tokyo23BoundaryPoly, clearedUnion);
+                if (diff) fogPoly = diff;
             }
 
-            const finalFogPoly = combinedCleared ? turf.difference(worldBox, combinedCleared) : worldBox;
-
-            fogLayer = L.geoJSON(finalFogPoly, {
+            fogLayer = L.geoJSON(fogPoly, {
                 style: {
-                    fillColor: '#0a0d12',
-                    fillOpacity: 0.88,
-                    color: '#1a222d',
-                    weight: 1
+                    fillColor: '#1a202c',
+                    fillOpacity: 0.65,
+                    color: '#2b6cb0',
+                    weight: 1.5
                 }
             }).addTo(map);
         }
 
-        function saveApiKey() {
-            apiKey = document.getElementById('api-key-input').value.trim();
-            addLog(apiKey ? "🔑 ホットペッパー APIキーを設定しました。" : "ℹ️ モックデータモードで動作します。");
-        }
-
-        // 1. GPS取得と周辺店舗の抽出
-        function getMyLocationAndFetchShops() {
-            addLog("📡 GPSで現在地を取得中...");
-
-            if (!navigator.geolocation) {
-                alert("位置情報に対応していません。デフォルト位置で検索します。");
-                fetchNearbyRestaurants(userPos[0], userPos[1]);
-                return;
+        function toggleStationVisit(stId) {
+            if (visitedStationIds.has(stId)) {
+                visitedStationIds.delete(stId);
+            } else {
+                visitedStationIds.add(stId);
             }
 
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    userPos = [pos.coords.latitude, pos.coords.longitude];
-                    map.setView(userPos, 16);
-                    userMarker.setLatLng(userPos);
-                    addLog(`📍 現在地を取得 (${userPos[0].toFixed(4)}, ${userPos[1].toFixed(4)})`);
-                    fetchNearbyRestaurants(userPos[0], userPos[1]);
-                },
-                () => {
-                    addLog("⚠️ GPS取得失敗。デフォルトの神田エリアで検索します。");
-                    fetchNearbyRestaurants(userPos[0], userPos[1]);
-                }
-            );
-        }
-
-        // 2. 周辺店舗の計算と表示
-        function fetchNearbyRestaurants(lat, lng) {
-            const userPoint = turf.point([lng, lat]);
-
-            nearbyShops = mockHotpepperDatabase.map(shop => {
-                const shopPoint = turf.point([shop.lng, shop.lat]);
-                const distKm = turf.distance(userPoint, shopPoint, { units: 'kilometers' });
-                return { ...shop, distance: Math.round(distKm * 1000) };
-            }).sort((a, b) => a.distance - b.distance);
-
-            renderNearbyShopList();
-        }
-
-        // 3. サイドバー＆マップへの店舗描画
-        function renderNearbyShopList() {
-            const container = document.getElementById('nearby-shop-list');
-            container.innerHTML = "";
-
-            nearbyShops.forEach(shop => {
-                // 地図ピン
-                const marker = L.marker([shop.lat, shop.lng]).addTo(map);
-                marker.bindPopup(`
-                    <b>${shop.name}</b><br>
-                    現在地から ${shop.distance}m<br>
-                    <button onclick="startStayVerification('${shop.id}')" style="margin-top:5px; padding:4px 8px; background:#e67e22; color:#fff; border:none; border-radius:4px; cursor:pointer;">
-                        この店舗で滞在記録
-                    </button>
-                `);
-
-                // サイドバーカード
-                const card = document.createElement('div');
-                card.className = "shop-card";
-                card.innerHTML = `
-                    <img src="${shop.img}" class="shop-img">
-                    <div class="shop-info">
-                        <div class="shop-name">${shop.name}</div>
-                        <div class="shop-meta">${shop.genre} • 距離 ${shop.distance}m</div>
-                        ${shop.isShoppingStreet ? `<span class="tag-opendata">商店街: ${shop.shoppingStreetName}</span>` : ''}
-                        ${shop.isCultural ? `<span class="tag-opendata">文化財: ${shop.culturalName}</span>` : ''}
-                    </div>
-                    <button class="btn-stay" onclick="startStayVerification('${shop.id}')">滞在記録</button>
-                `;
-                container.appendChild(card);
+            const isVisited = visitedStationIds.has(stId);
+            const newIcon = L.divIcon({
+                className: `station-marker-icon ${isVisited ? 'visited' : ''}`,
+                html: `●`,
+                iconSize: [20, 20]
             });
-        }
+            stationMarkers[stId].setIcon(newIcon);
 
-        // 4. 滞在判定タイマーとチェックイン処理
-        function startStayVerification(shopId) {
-            const selectedShop = nearbyShops.find(s => s.id === shopId);
-            if (!selectedShop) return;
-
-            const timerDisplay = document.getElementById('timer-display');
-            const timerCountdown = document.getElementById('timer-countdown');
-            timerDisplay.style.display = 'block';
-
-            let timeLeft = 10; // デモ用10秒タイマー（本番10分）
-            addLog(`⏱️ 「${selectedShop.name}」の滞在判定を開始...`);
-
-            if (stayTimer) clearInterval(stayTimer);
-
-            stayTimer = setInterval(() => {
-                timeLeft--;
-                timerCountdown.innerText = `00:${String(timeLeft).padStart(2,'0')}`;
-
-                if (timeLeft <= 0) {
-                    clearInterval(stayTimer);
-                    timerDisplay.style.display = 'none';
-                    recordStaySuccess(selectedShop);
-                }
-            }, 1000);
-        }
-
-        // 5. 滞在成功・霧解除・実績更新
-        function recordStaySuccess(shop) {
-            // 履歴追加
-            visitedHistory.push({ shopName: shop.name, time: new Date() });
-
-            // 選択した店舗を中心に半径500mの霧を解除
-            const shopCenter = turf.point([shop.lng, shop.lat]);
-            const clearedCircle = turf.buffer(shopCenter, 0.5, { units: 'kilometers' });
-            clearedPolygons.push(clearedCircle);
-
-            const addedAreaKm2 = turf.area(clearedCircle) / 1000000;
-            totalClearedAreaKm2 += addedAreaKm2;
+            const card = document.getElementById(`card-${stId}`);
+            if (card) {
+                card.className = `station-card ${isVisited ? 'visited' : ''}`;
+                card.querySelector('.badge-status').textContent = isVisited ? '解明' : '未';
+            }
 
             renderGeographicFog();
-
-            // 実績判定
-            triggerBadge(1);
-            if (shop.isCultural) triggerBadge(2);
-            if (shop.isShoppingStreet) triggerBadge(3);
-            if (shop.genre.includes("カフェ")) triggerBadge(4);
-
-            addLog(`✅ 【滞在記録完了】「${shop.name}」周辺の霧を解除しました！ (+${addedAreaKm2.toFixed(2)}km²)`, shop.isShoppingStreet ? `商店街OD: ${shop.shoppingStreetName}` : null);
-            updateUIStats();
+            updateProgress();
+            map.closePopup();
         }
 
-        function triggerBadge(id) {
-            if (!unlockedBadges.has(id)) {
-                unlockedBadges.add(id);
-                const badgeEl = document.getElementById(`badge-${id}`);
-                if (badgeEl) badgeEl.classList.add('unlocked');
-            }
+        function updateProgress() {
+            const count = visitedStationIds.size;
+            const percent = Math.round((count / 30) * 100);
+            document.getElementById('progress-bar').style.width = `${percent}%`;
+            document.getElementById('progress-text').textContent = `${count} / 30 駅 (${percent}%)`;
         }
 
-        function updateUIStats() {
-            const rate = Math.min((totalClearedAreaKm2 / TARGET_TOTAL_AREA_KM2) * 100, 100).toFixed(1);
-            document.getElementById('exploration-rate-text').innerText = `${rate}%`;
-            document.getElementById('progress-fill').style.width = `${rate}%`;
-            document.getElementById('cleared-area-val').innerText = `${totalClearedAreaKm2.toFixed(2)} km²`;
-            document.getElementById('visited-count-val').innerText = `${visitedHistory.length} 店舗`;
+        function onStationSelect() {
+            const stId = document.getElementById('select-station').value;
+            const st = yamanoteStations.find(s => s.id === stId);
+            if (st) map.setView([st.lat, st.lng], 14);
         }
 
-        function addLog(msg, openDataText = null) {
-            const list = document.getElementById('log-list');
-            const now = new Date();
-            const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        function generateAIPlan() {
+            const stId = document.getElementById('select-station').value;
+            const pref = document.getElementById('user-preference').value || "静かな個人店";
+            const st = yamanoteStations.find(s => s.id === stId);
 
-            const card = document.createElement('div');
-            card.className = "log-card";
-            card.innerHTML = `
-                <div class="log-time">${timeStr}</div>
-                <div>${msg}</div>
-                ${openDataText ? `<div class="tag-opendata">${openDataText}</div>` : ''}
+            const container = document.getElementById('ai-plan-container');
+            container.style.display = 'block';
+
+            container.innerHTML = `
+                <div class="ai-plan-card">
+                    <div class="ai-plan-title">✨ ${st.name}駅 パーソナライズ散策プラン</div>
+                    <div style="font-size:10px; color:var(--text-sub); margin-bottom:8px;">条件: チェーン店除外 / 「${pref}」</div>
+                    
+                    <div class="ai-spot-list">
+                        <div class="ai-spot-item">
+                            <b>1. 珈琲 自楽（隠れ家自家焙煎）</b><br>
+                            <span style="color:var(--text-sub);">駅から徒歩4分・ゆったりとした時間が流れる個人カフェ</span>
+                        </div>
+                        <div class="ai-spot-item">
+                            <b>2. 路地裏書店 朔日</b><br>
+                            <span style="color:var(--text-sub);">徒歩6分・店主こだわりの選書が並ぶセレクト書店</span>
+                        </div>
+                    </div>
+
+                    <button class="btn-unlock" onclick="toggleStationVisit('${st.id}')">
+                        🚩 このコースを巡って${st.name}駅をアンロック！
+                    </button>
+                </div>
             `;
-            list.prepend(card);
         }
 
         window.onload = initMap;
