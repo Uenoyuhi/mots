@@ -17,7 +17,7 @@
             --text-main: #2c3e50;
             --text-sub: #7f8c8d;
             --border-color: #e9ecef;
-            --sidebar-width: 380px;
+            --sidebar-width: 400px;
         }
 
         * {
@@ -58,7 +58,7 @@
             border-radius: 10px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
             backdrop-filter: blur(8px);
-            max-width: 320px;
+            max-width: 340px;
         }
 
         .toast-title {
@@ -91,6 +91,41 @@
             box-shadow: -2px 0 10px rgba(0,0,0,0.05);
         }
 
+        .nav-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            background: #f8f9fa;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: none;
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--text-sub);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-btn.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+            background: #fff;
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         .header {
             padding: 16px 20px;
             background: #ffffff;
@@ -103,12 +138,6 @@
             display: flex;
             align-items: center;
             gap: 8px;
-        }
-
-        .header p {
-            font-size: 11px;
-            color: var(--text-sub);
-            margin-top: 4px;
         }
 
         .progress-bar-container {
@@ -124,12 +153,6 @@
             width: 0%;
             background: var(--accent-green);
             transition: width 0.3s ease;
-        }
-
-        .scroll-area {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px 20px;
         }
 
         .section-title {
@@ -175,16 +198,18 @@
             background: var(--accent-blue);
             color: #fff;
             transition: opacity 0.2s;
+            margin-bottom: 8px;
         }
 
         .btn-action:hover { opacity: 0.9; }
+        .btn-secondary { background: #718096; }
 
         .ai-plan-card {
             background: #fffaf0;
             border: 1px solid var(--accent-gold);
             border-radius: 8px;
             padding: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .ai-plan-title {
@@ -206,8 +231,21 @@
             border-left: 2px solid var(--accent-gold);
         }
 
+        .btn-route {
+            margin-top: 8px;
+            width: 100%;
+            background: var(--accent-blue);
+            color: #fff;
+            border: none;
+            padding: 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
         .btn-unlock {
-            margin-top: 10px;
+            margin-top: 4px;
             width: 100%;
             background: var(--accent-green);
             color: #fff;
@@ -257,7 +295,6 @@
             color: #fff;
         }
 
-        /* Leaflet Marker Accent */
         .station-marker-icon {
             background: #718096;
             border: 2px solid #ffffff;
@@ -273,15 +310,27 @@
             background: #27ae60;
             box-shadow: 0 0 8px #27ae60;
         }
+
+        .spot-marker-icon {
+            background: #e67e22;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 10px;
+            text-align: center;
+            line-height: 16px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+        }
     </style>
 </head>
 <body>
 
     <div id="map-container">
         <div class="toast-banner">
-            <div class="toast-title">🚃 山手線 全30駅 開拓マップ</div>
+            <div class="toast-title">🚃 山手線 Fog of War 〜街歩きAI〜</div>
             <div class="toast-desc">
-                23区境界データを読み込んで地図をカバレッジ。訪問することで周辺のフォグ（霧）が解除されます。
+                コースを選択すると地図上にスポット巡回ルートが生成されます。
             </div>
             <div id="log-area"></div>
         </div>
@@ -291,15 +340,20 @@
     <div id="sidebar">
         <div class="header">
             <h1>🚃 山手線街歩きガイド</h1>
-            <p>全30駅 コンプリート進捗</p>
             <div class="progress-bar-container">
                 <div class="progress-bar" id="progress-bar"></div>
             </div>
             <div style="font-size:10px; color:var(--text-sub); margin-top:4px; text-align:right;" id="progress-text">0 / 30 駅 (0%)</div>
         </div>
 
-        <div class="scroll-area">
-            <div class="section-title">🤖 AIコース生成 & アンロック</div>
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('plan-tab')">🤖 AIガイド</button>
+            <button class="tab-btn" onclick="switchTab('profile-tab')">👤 ユーザー設定</button>
+        </div>
+
+        <!-- タブ1: AIコース生成 -->
+        <div id="plan-tab" class="tab-content active">
+            <div class="section-title">ルート生成</div>
             
             <div class="input-group">
                 <label>目的の駅</label>
@@ -307,18 +361,49 @@
             </div>
 
             <div class="input-group">
-                <label>あなたの好み・気分（チェーン店除外）</label>
-                <input type="text" id="user-preference" placeholder="例: 静かな個人カフェ、路地裏カレー">
+                <label>今日の気分・こだわり</label>
+                <input type="text" id="user-preference" placeholder="例: 静かな個人カフェ、歴史巡り">
             </div>
 
-            <button class="btn-action" onclick="generateAIPlan()">✨ AIでおすすめコースを作成</button>
+            <button class="btn-action" onclick="generateAIPlan()">✨ ルートを再計算</button>
 
-            <div id="ai-plan-container" style="margin-top:14px; display:none;"></div>
+            <div id="ai-plan-container" style="margin-top:14px;"></div>
 
-            <div class="section-title" style="margin-top:24px;">
-                📍 駅別ステータス
-            </div>
+            <div class="section-title" style="margin-top:24px;">📍 駅一覧</div>
             <div class="station-grid" id="station-grid"></div>
+        </div>
+
+        <!-- タブ2: ユーザー情報設定 -->
+        <div id="profile-tab" class="tab-content">
+            <div class="section-title">パーソナライズ設定</div>
+
+            <div class="input-group">
+                <label>年代</label>
+                <select id="prof-age">
+                    <option value="20s" selected>20代</option>
+                    <option value="30s">30代</option>
+                    <option value="40s">40代〜</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>メインの移動手段</label>
+                <select id="prof-transport">
+                    <option value="walk" selected>徒歩主体</option>
+                    <option value="cycle">自転車利用</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>お好み傾向</label>
+                <select id="prof-style">
+                    <option value="quiet" selected>静かなカフェ・古着・路地裏</option>
+                    <option value="active">アクティブ・スポーツ</option>
+                    <option value="gourmet">ガッツリグルメ</option>
+                </select>
+            </div>
+
+            <button class="btn-action" onclick="saveProfile()">💾 設定を保存</button>
         </div>
     </div>
 
@@ -360,78 +445,77 @@
             { id: "yurakucho", name: "有楽町", lat: 35.675069, lng: 139.762864 }
         ];
 
+        let userProfile = { age: "20s", transport: "walk", style: "quiet" };
         let map;
         let fogLayer = null;
         let visitedStationIds = new Set(["kanda"]);
         let stationMarkers = {};
+        let activeRouteLayer = null; // 地図上に表示中のルート描画層
+        let activeSpotMarkers = [];  // 地図上に表示中のスポットマーカー
         let tokyo23BoundaryPoly = null;
 
         function addLog(msg) {
             document.getElementById('log-area').textContent = msg;
         }
 
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function saveProfile() {
+            userProfile.age = document.getElementById('prof-age').value;
+            userProfile.transport = document.getElementById('prof-transport').value;
+            userProfile.style = document.getElementById('prof-style').value;
+            alert("設定を保存しました！");
+            switchTab('plan-tab');
+            generateAIPlan();
+        }
+
         function initMap() {
             map = L.map('map', { zoomControl: false }).setView([35.6812, 139.7550], 12);
             L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
-            // 【地図タイル変更】明るい視認性の高い地図タイル（CartoDB Positron / OSM系）
             L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
                 maxZoom: 18,
-                attribution: '&copy; <a href="https://carto.com/">CARTO</a>'
+                attribution: '&copy; CARTO'
             }).addTo(map);
 
-            // 山手線の環状線を描画
             const latLngs = yamanoteStations.map(s => [s.lat, s.lng]);
             latLngs.push([yamanoteStations[0].lat, yamanoteStations[0].lng]);
 
-            L.polyline(latLngs, {
-                color: '#27ae60',
-                weight: 4,
-                opacity: 0.8,
-                dashArray: '6, 6'
-            }).addTo(map);
+            L.polyline(latLngs, { color: '#27ae60', weight: 4, opacity: 0.8, dashArray: '6, 6' }).addTo(map);
 
             initStationsUI();
             loadTokyo23Boundary();
         }
 
-        // 23区の GeoJSON を読み込んで統合する関数
         async function loadTokyo23Boundary() {
-            addLog("⏳ 東京23区の境界データを読み込んでいます...");
+            addLog("⏳ 境界データを読込中...");
             const targetUrl = 'https://raw.githubusercontent.com/niiyz/JapanCityGeoJson/master/geojson/custom/tokyo23.json';
 
             try {
                 let response = await fetch('./tokyo23.json').catch(() => null);
-                if (!response || !response.ok) {
-                    response = await fetch(targetUrl);
-                }
-
-                if (!response.ok) {
-                    throw new Error(`HTTP Error: ${response.status}`);
-                }
+                if (!response || !response.ok) response = await fetch(targetUrl);
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
 
                 const geoData = await response.json();
-
                 let merged = null;
                 geoData.features.forEach(feature => {
-                    if (!merged) {
-                        merged = feature;
-                    } else {
-                        merged = turf.union(merged, feature);
-                    }
+                    merged = merged ? turf.union(merged, feature) : feature;
                 });
 
                 tokyo23BoundaryPoly = merged;
                 renderGeographicFog();
-                addLog("✅ 東京23区の精密境界データを適用しました！");
+                addLog("✅ 23区精密境界をロード完了");
             } catch (e) {
-                console.error(e);
-                addLog("⚠️ 境界データの取得に失敗したため、簡易領域でレンダリングします。");
-                // フォールバック用のポリゴンを作成
                 tokyo23BoundaryPoly = turf.polygon([[
                     [139.55, 35.52], [139.92, 35.52], [139.92, 35.82], [139.55, 35.82], [139.55, 35.52]
                 ]]);
                 renderGeographicFog();
+                addLog("⚠️ 簡易領域で処理中");
             }
         }
 
@@ -470,6 +554,7 @@
                 card.onclick = () => {
                     map.setView([st.lat, st.lng], 14);
                     selectEl.value = st.id;
+                    generateAIPlan();
                 };
                 card.innerHTML = `
                     <span>${st.name}</span>
@@ -478,13 +563,13 @@
                 gridEl.appendChild(card);
             });
             updateProgress();
+            generateAIPlan();
         }
 
         function renderGeographicFog() {
             if (fogLayer) map.removeLayer(fogLayer);
             if (!tokyo23BoundaryPoly) return;
 
-            // 解明範囲（円）の合成
             let clearedUnion = null;
             visitedStationIds.forEach(stId => {
                 const st = yamanoteStations.find(s => s.id === stId);
@@ -495,7 +580,6 @@
                 }
             });
 
-            // 23区境界から訪問済みエリアを切り抜く
             let fogPoly = tokyo23BoundaryPoly;
             if (clearedUnion) {
                 const diff = turf.difference(tokyo23BoundaryPoly, clearedUnion);
@@ -549,35 +633,87 @@
             const stId = document.getElementById('select-station').value;
             const st = yamanoteStations.find(s => s.id === stId);
             if (st) map.setView([st.lat, st.lng], 14);
+            generateAIPlan();
+        }
+
+        // 動的な周辺スポット座標オフセット生成関数
+        function getSpotsForStation(st) {
+            return [
+                { name: `${st.name}・路地裏のこだわり珈琲`, lat: st.lat + 0.0025, lng: st.lng + 0.003, desc: "徒歩4分・ゆったり静かな個店" },
+                { name: `${st.name}・隠れ家ブックストア`, lat: st.lat + 0.004, lng: st.lng - 0.002, desc: "徒歩7分・選書センス抜群" },
+                { name: `${st.name}・老舗和風甘味処`, lat: st.lat - 0.003, lng: st.lng + 0.004, desc: "徒歩8分・名物おはぎ" }
+            ];
+        }
+
+        // 地図上に選択されたルートを描画するコアロジック
+        function drawRouteOnMap(routeIndex, stId) {
+            const st = yamanoteStations.find(s => s.id === stId);
+            const spots = getSpotsForStation(st);
+
+            // 既存のルート描画とスポットピンをクリア
+            if (activeRouteLayer) map.removeLayer(activeRouteLayer);
+            activeSpotMarkers.forEach(m => map.removeLayer(m));
+            activeSpotMarkers = [];
+
+            // 駅（スタート）から各スポットを経由する座標列を作成
+            const waypoints = [[st.lat, st.lng]];
+            
+            // パターンに応じて経由地を変更
+            const selectedSpots = routeIndex === 0 ? [spots[0], spots[1]] : [spots[0], spots[2]];
+
+            selectedSpots.forEach((sp, idx) => {
+                waypoints.push([sp.lat, sp.lng]);
+
+                // スポットのマーカーを設置
+                const icon = L.divIcon({
+                    className: 'spot-marker-icon',
+                    html: `${idx + 1}`,
+                    iconSize: [18, 18]
+                });
+                const marker = L.marker([sp.lat, sp.lng], { icon: icon }).addTo(map)
+                    .bindPopup(`<b>${sp.name}</b><br>${sp.desc}`);
+                activeSpotMarkers.push(marker);
+            });
+
+            // 直線ルート（Polyline）の描画
+            activeRouteLayer = L.polyline(waypoints, {
+                color: '#e67e22',
+                weight: 5,
+                opacity: 0.8,
+                dashArray: '8, 8'
+            }).addTo(map);
+
+            // ルート全体が画面に収まるようズームを自動調整
+            map.fitBounds(activeRouteLayer.getBounds(), { padding: [50, 50] });
+            addLog(`🗺️ ${st.name}駅のルートを描画しました`);
         }
 
         function generateAIPlan() {
-            const stId = document.getElementById('select-station').value;
-            const pref = document.getElementById('user-preference').value || "静かな個人店";
+            const stId = document.getElementById('select-station').value || "kanda";
             const st = yamanoteStations.find(s => s.id === stId);
+            const spots = getSpotsForStation(st);
 
             const container = document.getElementById('ai-plan-container');
-            container.style.display = 'block';
-
+            
             container.innerHTML = `
                 <div class="ai-plan-card">
-                    <div class="ai-plan-title">✨ ${st.name}駅 パーソナライズ散策プラン</div>
-                    <div style="font-size:10px; color:var(--text-sub); margin-bottom:8px;">条件: チェーン店除外 / 「${pref}」</div>
-                    
+                    <div class="ai-plan-title">🅰️ ${st.name} 散策ルート（隠れ家カフェ）</div>
                     <div class="ai-spot-list">
-                        <div class="ai-spot-item">
-                            <b>1. 珈琲 自楽（隠れ家自家焙煎）</b><br>
-                            <span style="color:var(--text-sub);">駅から徒歩4分・ゆったりとした時間が流れる個人カフェ</span>
-                        </div>
-                        <div class="ai-spot-item">
-                            <b>2. 路地裏書店 朔日</b><br>
-                            <span style="color:var(--text-sub);">徒歩6分・店主こだわりの選書が並ぶセレクト書店</span>
-                        </div>
+                        <div class="ai-spot-item"><b>1. ${spots[0].name}</b><br><span style="color:var(--text-sub);">${spots[0].desc}</span></div>
+                        <div class="ai-spot-item"><b>2. ${spots[1].name}</b><br><span style="color:var(--text-sub);">${spots[1].desc}</span></div>
                     </div>
+                    <button class="btn-route" onclick="drawRouteOnMap(0, '${st.id}')">🗺️ ルートを地図に表示</button>
+                    <button class="btn-unlock" onclick="toggleStationVisit('${st.id}')">🚩 巡回完了（アンロック）</button>
+                </div>
 
-                    <button class="btn-unlock" onclick="toggleStationVisit('${st.id}')">
-                        🚩 このコースを巡って${st.name}駅をアンロック！
-                    </button>
+                <div class="ai-plan-card">
+                    <div class="ai-plan-title">🅱️ ${st.name} 和風スイーツ巡り</div>
+                    <div class="ai-spot-list">
+                        <div class="ai-spot-item"><b>1. ${spots[0].name}</b><br><span style="color:var(--text-sub);">${spots[0].desc}</span></div>
+                        <div class="ai-spot-item"><b>2. ${spots[2].name}</b><br><span style="color:var(--text-sub);">${spots[2].desc}</span></div>
+                    </div>
+                    <button class="btn-route" onclick="drawRouteOnMap(1, '${st.id}')">🗺️ ルートを地図に表示</button>
+                    <button class="btn-unlock" onclick="toggleStationVisit('${st.id}')">🚩 巡回完了（アンロック）</button>
                 </div>
             `;
         }
