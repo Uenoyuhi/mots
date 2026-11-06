@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LinguaFlow - Instant P2P Translation Chat</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- QRCode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- PeerJS (WebRTC P2P Library) -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.3); border-radius: 4px; }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .mic-active { animation: pulse-ring 1.5s infinite; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen w-screen overflow-hidden flex flex-col justify-between antialiased select-none">
+
+    <!-- HEADER BAR -->
+    <header class="h-14 px-4 bg-slate-900/90 backdrop-blur border-b border-slate-800 flex items-center justify-between shrink-0 z-20">
+        <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+                <i class="fa-solid fa-language text-base"></i>
+            </div>
+            <span class="font-bold text-base tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">LinguaFlow</span>
+        </div>
+
+        <!-- Connection Badge Status -->
+        <div id="status-badge" class="flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <span id="status-ping" class="w-2 h-2 rounded-full bg-amber-400 animate-ping mr-2"></span>
+            <span id="status-text">Peer準備中...</span>
+        </div>
+    </header>
+
+    <!-- MAIN VIEW AREA -->
+    <main class="flex-1 relative overflow-hidden flex flex-col justify-between">
+
+        <!-- ================= VIEW 1: HOST QR CODE DISPLAY ================= -->
+        <section id="screen-host" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-5 z-10 bg-slate-950 overflow-y-auto">
+            <div class="max-w-xs w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col items-center space-y-5">
+                <div class="space-y-1">
+                    <span class="text-[10px] font-bold tracking-widest uppercase text-indigo-400">One-Time Instant Room</span>
+                    <h2 class="text-xl font-bold text-white">QRコードで接続</h2>
+                    <p class="text-xs text-slate-400">相手のスマホカメラで読み取るとチャットが開始します。</p>
+                </div>
+
+                <!-- QR Container -->
+                <div class="relative p-3 bg-white rounded-2xl shadow-inner flex items-center justify-center min-w-[190px] min-h-[190px]">
+                    <div id="qrcode"></div>
+                    <div id="qr-loading" class="absolute inset-0 flex flex-col items-center justify-center bg-white rounded-2xl">
+                        <i class="fa-solid fa-circle-notch fa-spin text-indigo-600 text-2xl mb-2"></i>
+                        <span class="text-xs text-slate-600 font-medium">QR生成中...</span>
+                    </div>
+                </div>
+
+                <!-- Room Info & Link Copy -->
+                <div class="w-full pt-2 border-t border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between text-xs text-slate-400 bg-slate-950 px-3 py-2 rounded-xl border border-slate-800/80">
+                        <span class="truncate mr-2">Room: <strong id="room-id-tag" class="text-slate-200 font-mono">---</strong></span>
+                        <button onclick="copyRoomLink()" class="text-indigo-400 hover:text-indigo-300 shrink-0 font-medium flex items-center space-x-1">
+                            <i class="fa-regular fa-copy"></i>
+                            <span>コピー</span>
+                        </button>
+                    </div>
+
+                    <!-- Direct Test Button (Same device simulator) -->
+                    <button onclick="openGuestTab()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl text-xs border border-slate-700 transition">
+                        <i class="fa-solid fa-up-right-from-square mr-1"></i> 2端末目として別タブで開く
+                    </button>
+                </div>
+            </div>
+
+            <p class="text-xs text-slate-500 max-w-xs leading-relaxed">
+                💡 サーバーを経由しないP2P通信（PeerJS）で直接接続されます。
+            </p>
+        </section>
+
+        <!-- ================= VIEW 2: GUEST CONNECTING SCREEN ================= -->
+        <section id="screen-connecting" class="hidden absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-4 z-10 bg-slate-950">
+            <div class="w-16 h-16 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-2xl animate-pulse">
+                <i class="fa-solid fa-wifi"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white">ホストへ接続中...</h3>
+            <p class="text-xs text-slate-400 max-w-xs">暗号化P2Pセッションを確立しています。少々お待ちください。</p>
+        </section>
+
+        <!-- ================= VIEW 3: LIVE CHAT ROOM ================= -->
+        <section id="screen-chat" class="hidden absolute inset-0 flex flex-col justify-between bg-slate-950">
+            
+            <!-- Language Bar & Header -->
+            <div class="px-4 py-2.5 bg-slate-900/60 border-b border-slate-800 flex items-center justify-between shrink-0 z-10">
+                <!-- My Language Picker -->
+                <div class="relative">
+                    <button id="lang-btn" onclick="toggleLangDropdown()" class="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-medium text-slate-200 hover:bg-slate-750 transition">
+                        <span id="my-flag" class="text-base">🇯🇵</span>
+                        <span id="my-lang-name">日本語</span>
+                        <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
+                    </button>
+
+                    <!-- Dropdown Modal -->
+                    <div id="lang-dropdown" class="hidden absolute left-0 mt-2 w-48 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl py-1 z-50 text-xs divide-y divide-slate-800">
+                        <div class="px-3 py-1.5 text-[10px] uppercase font-bold text-slate-500">自分の言語を設定</div>
+                        <button onclick="setLanguage('ja', '🇯🇵', '日本語')" class="w-full px-3 py-2 text-left flex items-center justify-between hover:bg-slate-800 text-slate-200">
+                            <span>🇯🇵 日本語</span>
+                        </button>
+                        <button onclick="setLanguage('en', '🇺🇸', 'English')" class="w-full px-3 py-2 text-left flex items-center justify-between hover:bg-slate-800 text-slate-200">
+                            <span>🇺🇸 English</span>
+                        </button>
+                        <button onclick="setLanguage('zh', '🇨🇳', '中文')" class="w-full px-3 py-2 text-left flex items-center justify-between hover:bg-slate-800 text-slate-200">
+                            <span>🇨🇳 中文</span>
+                        </button>
+                        <button onclick="setLanguage('ko', '🇰🇷', '한국어')" class="w-full px-3 py-2 text-left flex items-center justify-between hover:bg-slate-800 text-slate-200">
+                            <span>🇰🇷 한국어</span>
+                        </button>
+                        <button onclick="setLanguage('es', '🇪🇸', 'Español')" class="w-full px-3 py-2 text-left flex items-center justify-between hover:bg-slate-800 text-slate-200">
+                            <span>🇪🇸 Español</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Info Help -->
+                <div class="flex items-center space-x-2">
+                    <button onclick="showInfoModal()" class="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 text-slate-400 flex items-center justify-center hover:text-white text-xs">
+                        <i class="fa-solid fa-circle-info"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- CHAT STREAM -->
+            <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-4">
+                <div class="flex justify-center my-1">
+                    <span class="text-[10px] font-medium text-slate-500 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
+                        🔒 P2P接続完了 • リアルタイム自動翻訳有効
+                    </span>
+                </div>
+            </div>
+
+            <!-- TYPING NOTIFIER -->
+            <div id="typing-indicator" class="hidden px-4 py-1.5 flex items-center space-x-2 text-xs text-slate-400">
+                <div class="flex space-x-1">
+                    <div class="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></div>
+                    <div class="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                    <div class="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                </div>
+                <span class="text-[11px]">相手が入力中...</span>
+            </div>
+
+            <!-- EMOJI QUICK TOOLBAR -->
+            <div class="px-4 py-1.5 bg-slate-900/90 border-t border-slate-800/60 flex items-center justify-around text-lg">
+                <button onclick="sendQuickEmoji('👍')" class="hover:scale-125 transition active:scale-90">👍</button>
+                <button onclick="sendQuickEmoji('🙏')" class="hover:scale-125 transition active:scale-90">🙏</button>
+                <button onclick="sendQuickEmoji('💡')" class="hover:scale-125 transition active:scale-90">💡</button>
+                <button onclick="sendQuickEmoji('🍣')" class="hover:scale-125 transition active:scale-90">🍣</button>
+                <button onclick="sendQuickEmoji('❤️')" class="hover:scale-125 transition active:scale-90">❤️</button>
+                <button onclick="sendQuickEmoji('❓')" class="hover:scale-125 transition active:scale-90">❓</button>
+            </div>
+
+            <!-- INPUT FORM BAR -->
+            <div class="p-3 bg-slate-900 border-t border-slate-800 z-10">
+                <form id="chat-form" onsubmit="handleSend(event)" class="flex items-center space-x-2">
+                    <button type="button" id="mic-btn" onclick="toggleMic()" class="w-11 h-11 rounded-2xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center shrink-0 transition active:scale-95">
+                        <i class="fa-solid fa-microphone text-base"></i>
+                    </button>
+
+                    <div class="relative flex-1">
+                        <input type="text" id="msg-input" oninput="handleTypingNotification()" placeholder="メッセージを入力..." autocomplete="off" class="w-full h-11 px-4 bg-slate-950 border border-slate-800 rounded-2xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm">
+                    </div>
+
+                    <button type="submit" class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20 hover:opacity-90 active:scale-95 transition">
+                        <i class="fa-solid fa-paper-plane text-sm"></i>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- INFO MODAL -->
+    <div id="info-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-slate-800 max-w-sm w-full rounded-3xl p-6 text-center space-y-4 shadow-2xl">
+            <div class="w-14 h-14 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mx-auto flex items-center justify-center text-xl">
+                <i class="fa-solid fa-bolt"></i>
+            </div>
+            <h3 class="text-base font-bold text-white">LinguaFlow P2P 翻訳チャット</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+                PeerJS WebRTCテクノロジーを採用。中央サーバーを介さずメッセージが直接スマホ同士で相互送信されます。
+            </p>
+            <button onclick="closeInfoModal()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition">
+                閉じつ
+            </button>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT APPLICATION LOGIC -->
+    <script>
+        // Global Application State
+        let peer = null;
+        let conn = null;
+        let roomTargetId = null;
+        let isHost = true;
+        let currentLang = 'ja';
+        let currentFlag = '🇯🇵';
+        let isMicActive = false;
+        let recognition = null;
+        let typingTimeout = null;
+
+        // Simulated Contextual Nuance Engine (LLM Prototype Mock)
+        const nuanceDictionary = [
+            {
+                keywords: ['検討', 'かんとう', 'think', 'consider', 'later'],
+                jaNuance: '💡 文化注釈: 日本語の「検討します」は実質的な丁寧なお断りのニュアンスが含まれることがあります。',
+                enNuance: '💡 Cultural Note: In Western context, "I will consider it" often implies a soft rejection or postponement.'
+            },
+            {
+                keywords: ['おすすめ', 'オススメ', 'recommend', 'popular'],
+                jaNuance: '✨ 接客インサイト: 最も自信のある看板メニューを明るく紹介する意図が含まれます。',
+                enNuance: '✨ Service Insight: Expresses pride and hospitality in highlighting top menu items.'
+            },
+            {
+                keywords: ['アレルギー', 'allergy', 'gluten', 'vegan'],
+                jaNuance: '⚠️ 重要配慮: 食事の安全・健康に関する確認です。慎重かつ正確な回答が好まれます。',
+                enNuance: '⚠️ Critical Concern: Dietary requirement inquiry. Clear, reassuring confirmation recommended.'
+            }
+        ];
+
+        // Initialization Logic
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            roomTargetId = urlParams.get('room');
+
+            if (roomTargetId) {
+                // GUEST MODE
+                isHost = false;
+                initGuestMode(roomTargetId);
+            } else {
+                // HOST MODE
+                isHost = true;
+                initHostMode();
+            }
+
+            setupSpeechRecognition();
+        });
+
+        // 1. HOST MODE INITIALIZATION
+        function initHostMode() {
+            const generatedRoomId = 'room-' + Math.random().toString(36).substring(2, 8);
+            document.getElementById('room-id-tag').innerText = generatedRoomId;
+
+            // Connect to Public PeerServer
+            peer = new Peer(generatedRoomId);
+
+            peer.on('open', (id) => {
+                console.log('Host Peer ID initialized:', id);
+                updateStatus(false, 'QRを読み取ってください');
+
+                // Generate QR Code with target room URL
+                const shareUrl = window.location.origin + window.location.pathname + '?room=' + id;
+                generateQRCode(shareUrl);
+            });
+
+            // Listen for incoming connection from Guest
+            peer.on('connection', (incomingConn) => {
+                conn = incomingConn;
+                setupConnectionListeners();
+            });
+
+            peer.on('error', (err) => {
+                console.error('PeerJS Host Error:', err);
+                updateStatus(false, 'エラーが発生しました');
+            });
+        }
+
+        // 2. GUEST MODE INITIALIZATION
+        function initGuestMode(targetId) {
+            showScreen('screen-connecting');
+            updateStatus(false, 'ホストへ接続中...');
+
+            // Connect to PeerServer with auto-generated random client ID
+            peer = new Peer();
+
+            peer.on('open', () => {
+                console.log('Guest Peer initialized, connecting to:', targetId);
+                conn = peer.connect(targetId);
+                setupConnectionListeners();
+            });
+
+            peer.on('error', (err) => {
+                console.error('PeerJS Guest Error:', err);
+                alert('ホストへの接続に失敗しました。QRコードを再読み込みしてください。');
+                window.location.href = window.location.origin + window.location.pathname;
+            });
+        }
+
+        // 3. COMMON CONNECTION EVENT LISTENERS
+        function setupConnectionListeners() {
+            conn.on('open', () => {
+                console.log('P2P Connection established!');
+                updateStatus(true, 'P2P接続中');
+                showScreen('screen-chat');
+
+                // Send language handshakes
+                conn.send({
+                    type: 'handshake',
+                    lang: currentLang,
+                    flag: currentFlag
+                });
+            });
+
+            conn.on('data', (data) => {
+                handleIncomingData(data);
+            });
+
+            conn.on('close', () => {
+                updateStatus(false, '切断されました');
+                alert('相手との接続が切断されました。');
+            });
+        }
+
+        // Data Handling (Messages, Typing Indicators, Handshakes)
+        function handleIncomingData(data) {
+            if (data.type === 'chat') {
+                hideTypingIndicator();
+                
+                // Translate & Analyze Nuance
+                const translation = simulateTranslation(data.text, currentLang);
+                const nuance = detectNuance(data.text);
+
+                renderMessage({
+                    sender: 'partner',
+                    originalText: data.text,
+                    translatedText: translation,
+                    nuanceNote: nuance,
+                    flag: data.flag || '🌐',
+                    time: data.time
+                });
+            } else if (data.type === 'typing') {
+                showTypingIndicator();
+            } else if (data.type === 'emoji') {
+                renderEmojiMessage('partner', data.emoji, data.time);
+            }
+        }
+
+        // Send Chat Message
+        function handleSend(e) {
+            e.preventDefault();
+            const input = document.getElementById('msg-input');
+            const text = input.value.trim();
+            if (!text || !conn) return;
+
+            const now = getCurrentTime();
+
+            // Send via P2P
+            conn.send({
+                type: 'chat',
+                text: text,
+                lang: currentLang,
+                flag: currentFlag,
+                time: now
+            });
+
+            // Render local bubble
+            renderMessage({
+                sender: 'me',
+                originalText: text,
+                translatedText: text,
+                flag: currentFlag,
+                time: now
+            });
+
+            input.value = '';
+        }
+
+        // Send Emoji Reaction
+        function sendQuickEmoji(emoji) {
+            if (!conn) return;
+            const now = getCurrentTime();
+
+            conn.send({
+                type: 'emoji',
+                emoji: emoji,
+                time: now
+            });
+
+            renderEmojiMessage('me', emoji, now);
+        }
+
+        // Typing Notification Broadcast
+        function handleTypingNotification() {
+            if (!conn) return;
+            conn.send({ type: 'typing' });
+        }
+
+        // UI RENDERERS
+        function renderMessage(msg) {
+            const stream = document.getElementById('chat-messages');
+            const bubble = document.createElement('div');
+
+            if (msg.sender === 'me') {
+                bubble.className = "chat-bubble me flex flex-col items-end space-y-1 max-w-[85%] ml-auto";
+                bubble.innerHTML = `
+                    <div class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl rounded-tr-sm p-3 shadow-md text-sm leading-relaxed">
+                        ${escapeHtml(msg.originalText)}
+                    </div>
+                    <div class="flex items-center space-x-1.5 pr-1">
+                        <span class="text-[10px] text-slate-500">${msg.time}</span>
+                        <span class="text-[10px]">${msg.flag}</span>
+                    </div>
+                `;
+            } else {
+                bubble.className = "chat-bubble partner flex flex-col items-start space-y-1 max-w-[85%]";
+                
+                const nuanceCardHtml = msg.nuanceNote ? `
+                    <details class="group border-t border-slate-700/60 pt-1.5 text-xs">
+                        <summary class="list-none flex items-center justify-between text-[11px] text-indigo-400 font-medium cursor-pointer select-none">
+                            <span class="flex items-center space-x-1">
+                                <i class="fa-solid fa-wand-magic-sparkles text-indigo-400"></i>
+                                <span>LLM ニュアンス補足</span>
+                            </span>
+                            <i class="fa-solid fa-chevron-down text-[9px] group-open:rotate-180 transition-transform"></i>
+                        </summary>
+                        <div class="mt-2 p-2 rounded-xl bg-slate-950/80 border border-slate-700/50 text-[11px] text-slate-300 space-y-1 font-sans">
+                            <div class="text-slate-400">原文: <span class="text-slate-200">"${escapeHtml(msg.originalText)}"</span></div>
+                            <div class="text-indigo-300 font-medium leading-normal">${escapeHtml(msg.nuanceNote)}</div>
+                        </div>
+                    </details>
+                ` : '';
+
+                bubble.innerHTML = `
+                    <div class="flex items-center space-x-1 pl-1 text-[11px] text-slate-400">
+                        <span>${msg.flag} Partner</span>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-sm p-3 shadow-sm text-slate-100 text-sm space-y-2">
+                        <p class="font-medium leading-relaxed">${escapeHtml(msg.translatedText)}</p>
+                        ${nuanceCardHtml}
+                    </div>
+                    <div class="flex items-center space-x-2 pl-1 pt-0.5">
+                        <span class="text-[10px] text-slate-500">${msg.time}</span>
+                        <button onclick="speakText('${escapeHtml(msg.translatedText)}')" class="text-slate-400 hover:text-indigo-400 text-xs">
+                            <i class="fa-solid fa-volume-high"></i>
+                        </button>
+                    </div>
+                `;
+            }
+
+            stream.appendChild(bubble);
+            stream.scrollTop = stream.scrollHeight;
+        }
+
+        function renderEmojiMessage(sender, emoji, time) {
+            const stream = document.getElementById('chat-messages');
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble ${sender} flex flex-col space-y-1 max-w-[85%] ${sender === 'me' ? 'ml-auto items-end' : 'items-start'}`;
+            bubble.innerHTML = `
+                <div class="text-3xl p-1 animate-bounce duration-300">${emoji}</div>
+                <span class="text-[9px] text-slate-500 px-1">${time}</span>
+            `;
+            stream.appendChild(bubble);
+            stream.scrollTop = stream.scrollHeight;
+        }
+
+        // MOCK AI TRANSLATION & NUANCE DETECTION
+        function simulateTranslation(text, targetLang) {
+            // Simplified Mock Translation Logic
+            if (targetLang === 'ja') {
+                if (text.toLowerCase().includes('hello') || text.toLowerCase().includes('hi')) return 'こんにちは！';
+                if (text.toLowerCase().includes('recommend')) return 'おすすめの料理は何ですか？';
+                if (text.toLowerCase().includes('thank')) return 'ありがとうございます！';
+                return `[自動翻訳]: ${text}`;
+            } else {
+                if (text.includes('こんにちは') || text.includes('ハロー')) return 'Hello there!';
+                if (text.includes('おすすめ') || text.includes('人気')) return 'What do you recommend?';
+                if (text.includes('ありがとう')) return 'Thank you very much!';
+                return `[Translated]: ${text}`;
+            }
+        }
+
+        function detectNuance(text) {
+            const found = nuanceDictionary.find(item => item.keywords.some(kw => text.toLowerCase().includes(kw)));
+            if (found) {
+                return currentLang === 'ja' ? found.jaNuance : found.enNuance;
+            }
+            return '✨ 自然な会話文脈として認識されました。';
+        }
+
+        // QR CODE & HELPER FUNCTIONS
+        function generateQRCode(url) {
+            const qrContainer = document.getElementById("qrcode");
+            const loading = document.getElementById("qr-loading");
+            qrContainer.innerHTML = "";
+
+            new QRCode(qrContainer, {
+                text: url,
+                width: 170,
+                height: 170,
+                colorDark : "#0f172a",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.M
+            });
+
+            loading.classList.add('hidden');
+        }
+
+        function copyRoomLink() {
+            const url = window.location.origin + window.location.pathname + '?room=' + document.getElementById('room-id-tag').innerText;
+            navigator.clipboard.writeText(url).then(() => {
+                alert('招待リンクをコピーしました！');
+            }).catch(() => {
+                prompt('以下のURLを相手に送信してください:', url);
+            });
+        }
+
+        function openGuestTab() {
+            const url = window.location.origin + window.location.pathname + '?room=' + document.getElementById('room-id-tag').innerText;
+            window.open(url, '_blank');
+        }
+
+        function updateStatus(connected, text) {
+            const badge = document.getElementById('status-badge');
+            const ping = document.getElementById('status-ping');
+            const statusText = document.getElementById('status-text');
+
+            statusText.innerText = text;
+            if (connected) {
+                badge.className = "flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                ping.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse mr-2";
+            } else {
+                badge.className = "flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20";
+                ping.className = "w-2 h-2 rounded-full bg-amber-400 animate-ping mr-2";
+            }
+        }
+
+        function showScreen(screenId) {
+            document.getElementById('screen-host').classList.add('hidden');
+            document.getElementById('screen-connecting').classList.add('hidden');
+            document.getElementById('screen-chat').classList.add('hidden');
+
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        function showTypingIndicator() {
+            document.getElementById('typing-indicator').classList.remove('hidden');
+            if (typingTimeout) clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(hideTypingIndicator, 3000);
+        }
+
+        function hideTypingIndicator() {
+            document.getElementById('typing-indicator').classList.add('hidden');
+        }
+
+        // LANGUAGE DROPDOWN
+        function toggleLangDropdown() {
+            document.getElementById('lang-dropdown').classList.toggle('hidden');
+        }
+
+        function setLanguage(code, flag, name) {
+            currentLang = code;
+            currentFlag = flag;
+            document.getElementById('my-flag').innerText = flag;
+            document.getElementById('my-lang-name').innerText = name;
+            document.getElementById('lang-dropdown').classList.add('hidden');
+
+            if (conn) {
+                conn.send({ type: 'handshake', lang: code, flag: flag });
+            }
+        }
+
+        // VOICE RECOGNITION & TTS
+        function setupSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    document.getElementById('msg-input').value = transcript;
+                    toggleMic(); // Turn off mic
+                };
+
+                recognition.onerror = () => toggleMic();
+                recognition.onend = () => toggleMic();
+            }
+        }
+
+        function toggleMic() {
+            const btn = document.getElementById('mic-btn');
+            if (!recognition) {
+                alert('お使いのブラウザは音声認識に対応していません。');
+                return;
+            }
+
+            isMicActive = !isMicActive;
+            if (isMicActive) {
+                btn.classList.add('mic-active', 'bg-rose-600', 'text-white', 'border-rose-500');
+                recognition.lang = currentLang === 'ja' ? 'ja-JP' : 'en-US';
+                recognition.start();
+            } else {
+                btn.classList.remove('mic-active', 'bg-rose-600', 'text-white', 'border-rose-500');
+                recognition.stop();
+            }
+        }
+
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const uttr = new SpeechSynthesisUtterance(text);
+                uttr.lang = currentLang === 'ja' ? 'ja-JP' : 'en-US';
+                window.speechSynthesis.speak(uttr);
+            }
+        }
+
+        // MODAL HELPERS
+        function showInfoModal() { document.getElementById('info-modal').classList.remove('hidden'); }
+        function closeInfoModal() { document.getElementById('info-modal').classList.add('hidden'); }
+
+        function getCurrentTime() {
+            const d = new Date();
+            return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
