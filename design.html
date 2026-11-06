@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BabelQR - Real-time P2P AI Translate Chat</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- QRCode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- PeerJS for WebRTC P2P -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.4); border-radius: 4px; }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        /* iOS Safari のキーボード・動的バー対策 */
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;
+            height: 100dvh;
+        }
+        #app-wrapper {
+            height: 100%;
+            height: 100dvh;
+        }
+        @supports (-webkit-touch-callout: none) {
+            #app-wrapper {
+                height: -webkit-fill-available;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased flex justify-center items-center h-screen overflow-hidden sm:p-4">
+
+    <!-- App Container -->
+    <div id="app-wrapper" class="w-full max-w-md h-full sm:h-[92vh] sm:rounded-3xl bg-slate-900 flex flex-col shadow-2xl relative overflow-hidden border border-slate-800">
+        
+        <!-- HEADER -->
+        <header class="bg-slate-950/90 border-b border-slate-800 px-4 py-3 flex items-center justify-between shrink-0 z-20">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+                    <i class="fa-solid fa-language text-base"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-sm text-slate-100 tracking-wide flex items-center gap-1.5">
+                        BabelQR
+                        <span class="text-[10px] font-normal px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-300 border border-brand-500/30">P2P</span>
+                    </h1>
+                    <p class="text-[10px] text-slate-400 flex items-center gap-1" id="connection-status-bar">
+                        <span class="w-2 h-2 rounded-full bg-amber-500 inline-block animate-pulse" id="status-dot"></span>
+                        <span id="status-text">初期化中...</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- My Language Button -->
+                <button id="lang-menu-btn" onclick="toggleLangSelector()" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 transition">
+                    <span id="current-lang-flag">🇯🇵</span>
+                    <span id="current-lang-code" class="font-bold">JA</span>
+                    <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
+                </button>
+                <button onclick="toggleSettingsModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs transition">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- SCREEN 1: ROOM CONNECTION (Host & Join Options) -->
+        <main id="view-landing" class="flex-1 flex flex-col justify-between p-5 overflow-y-auto z-10 space-y-4">
+            
+            <div class="text-center pt-2">
+                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-medium bg-brand-500/10 text-brand-300 border border-brand-500/20 mb-2">
+                    <i class="fa-solid fa-bolt text-xs"></i> 暗号化P2Pダイレクト通信
+                </span>
+                <h2 class="text-xl font-bold text-white">端末同士を即座に接続</h2>
+                <p class="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+                    相手のQRコードをスマホカメラで読み込むか、IDを入力してリアルタイム会話を開始します。
+                </p>
+            </div>
+
+            <!-- Host Mode Card (QR Code) -->
+            <div class="bg-slate-950/80 border border-slate-800 rounded-3xl p-5 flex flex-col items-center justify-center shadow-xl relative overflow-hidden">
+                <div class="text-center mb-3">
+                    <span class="text-xs text-slate-400 font-medium">【この端末のQRコード】</span>
+                </div>
+
+                <!-- QR Container -->
+                <div class="bg-white p-3 rounded-2xl shadow-md border border-slate-200 relative mb-3">
+                    <div id="qrcode" class="w-44 h-44 flex items-center justify-center">
+                        <i class="fa-solid fa-circle-notch fa-spin text-slate-400 text-2xl"></i>
+                    </div>
+                </div>
+
+                <div class="w-full text-center space-y-2">
+                    <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-900 rounded-full text-xs text-slate-300 border border-slate-800 max-w-full">
+                        <i class="fa-solid fa-key text-brand-400"></i>
+                        <span class="font-mono font-bold text-slate-100 text-xs tracking-wider" id="display-peer-id">生成中...</span>
+                        <button onclick="copyLink()" class="hover:text-brand-300 ml-1 text-slate-400" title="URLをコピー">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manual Join Input & Test Options -->
+            <div class="space-y-2.5">
+                <!-- Manual ID Join Form -->
+                <form onsubmit="handleManualConnect(event)" class="flex gap-2">
+                    <input type="text" id="manual-peer-id" placeholder="相手のID（例: 8A2B9F）を入力..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-brand-500 uppercase font-mono tracking-wider">
+                    <button type="submit" class="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition shrink-0">
+                        接続
+                    </button>
+                </form>
+
+                <div class="relative flex py-1 items-center">
+                    <div class="flex-grow border-t border-slate-800"></div>
+                    <span class="flex-shrink mx-3 text-[10px] text-slate-500 uppercase font-bold">または</span>
+                    <div class="flex-grow border-t border-slate-800"></div>
+                </div>
+
+                <!-- Single-device test button -->
+                <button onclick="simulatePeerJoin()" class="w-full py-3 px-4 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-semibold text-xs rounded-xl shadow-lg flex items-center justify-center gap-2 transition active:scale-[0.98]">
+                    <i class="fa-solid fa-robot"></i>
+                    <span>1台でテスト（AIパートナーと接続）</span>
+                </button>
+            </div>
+        </main>
+
+        <!-- SCREEN 2: ACTIVE REAL-TIME CHAT -->
+        <main id="view-chat" class="hidden flex-1 flex flex-col justify-between overflow-hidden relative bg-slate-950">
+            
+            <!-- Non-verbal Quick Action Bar -->
+            <div class="bg-slate-900/90 border-b border-slate-800 px-3 py-2 flex items-center gap-2 overflow-x-auto shrink-0 scrollbar-none">
+                <span class="text-[10px] text-slate-500 uppercase tracking-wider font-bold shrink-0">クイック:</span>
+                <button onclick="sendPictogram('感謝 / Thank you', '🙏')" class="shrink-0 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1 rounded-full text-xs flex items-center gap-1 transition">
+                    <span>🙏</span> <span>感謝</span>
+                </button>
+                <button onclick="sendPictogram('お会計 / Bill please', '💳')" class="shrink-0 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1 rounded-full text-xs flex items-center gap-1 transition">
+                    <span>💳</span> <span>会計</span>
+                </button>
+                <button onclick="sendPictogram('道案内 / Directions', '📍')" class="shrink-0 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1 rounded-full text-xs flex items-center gap-1 transition">
+                    <span>📍</span> <span>道案内</span>
+                </button>
+                <button onclick="sendPictogram('トイレ / Restroom', '🚽')" class="shrink-0 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1 rounded-full text-xs flex items-center gap-1 transition">
+                    <span>🚽</span> <span>トイレ</span>
+                </button>
+                <button onclick="sendPictogram('了解 / OK', '👍')" class="shrink-0 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1 rounded-full text-xs flex items-center gap-1 transition">
+                    <span>👍</span> <span>了解</span>
+                </button>
+                <button onclick="sendPictogram('すみません / Excuse me', '🙋')" class="shrink-0 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1 rounded-full text-xs flex items-center gap-1 transition">
+                    <span>🙋</span> <span>すみません</span>
+                </button>
+            </div>
+
+            <!-- Real-time Messages Feed -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4">
+                <div class="flex justify-center my-1">
+                    <div class="bg-slate-900 border border-slate-800 text-slate-400 text-[11px] px-3 py-1.5 rounded-full text-center max-w-[90%] shadow-sm flex items-center gap-1.5">
+                        <i class="fa-solid fa-lock text-emerald-400"></i> 端末間P2P接続完了。各自の母国語にリアルタイム翻訳されます。
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Controls -->
+            <div class="p-3 bg-slate-900/90 border-t border-slate-800 shrink-0 space-y-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                <div class="flex items-center justify-between text-[10px] text-slate-400 px-1">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                        <span>AI自動翻訳・ニュアンス補足 有効</span>
+                    </div>
+                    <span id="target-partner-lang" class="text-slate-500">相手の表示言語: EN 🇺🇸</span>
+                </div>
+
+                <form id="chat-form" onsubmit="handleSendMessage(event)" class="flex items-center gap-2">
+                    <input type="text" id="chat-input" placeholder="自分の言語でメッセージを入力..." class="flex-1 bg-slate-950 border border-slate-800 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition">
+                    <button type="submit" class="w-10 h-10 bg-brand-600 hover:bg-brand-500 text-white rounded-2xl flex items-center justify-center text-sm shadow-md transition active:scale-95 shrink-0">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </main>
+
+        <!-- LANGUAGE SELECTOR MODAL -->
+        <div id="lang-modal" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 class="font-bold text-slate-200 text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-earth-americas text-brand-400"></i> 母国語（自分の言語）を選択
+                    </h3>
+                    <button onclick="toggleLangSelector()" class="text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-left" id="language-grid"></div>
+            </div>
+        </div>
+
+        <!-- SETTINGS MODAL -->
+        <div id="settings-modal" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl text-xs text-slate-300">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 class="font-bold text-slate-100 text-sm">アプリ設定</h3>
+                    <button onclick="toggleSettingsModal()" class="text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div class="space-y-2">
+                    <label class="block font-semibold text-slate-200">Gemini API Key (オプション)</label>
+                    <p class="text-[11px] text-slate-400">Google Gemini APIキーを設定すると、本物のAIによる高度なニュアンス解析と精密な翻訳が実行されます。</p>
+                    <input type="password" id="gemini-api-key" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-brand-500">
+                </div>
+                <button onclick="saveApiKey()" class="w-full py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold transition">
+                    保存
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Supported Languages
+        const LANGUAGES = [
+            { code: 'JA', name: '日本語', flag: '🇯🇵', targetPrompt: 'Japanese' },
+            { code: 'EN', name: 'English', flag: '🇺🇸', targetPrompt: 'English' },
+            { code: 'ZH', name: '中文', flag: '🇨🇳', targetPrompt: 'Simplified Chinese' },
+            { code: 'ES', name: 'Español', flag: '🇪🇸', targetPrompt: 'Spanish' },
+            { code: 'FR', name: 'Français', flag: '🇫🇷', targetPrompt: 'French' },
+            { code: 'KR', name: '한국어', flag: '🇰🇷', targetPrompt: 'Korean' }
+        ];
+
+        // Cultural Context Mock Database
+        const MOCK_NUANCE_DB = {
+            "検討します": {
+                translation: "I will consider it.",
+                nuance: "💡 【文化・ニュアンス解説】日本のビジネスや会話では、直接的な「お断り」を避けるための丁寧な婉曲表現として使われるケースが多いです。"
+            },
+            "大丈夫です": {
+                translation: "It's fine / No thank you.",
+                nuance: "💡 【文脈注意】「結構です（拒否）」と「問題ありません（承諾）」の相反する2つの意味を持ちます。"
+            },
+            "行けたら行きます": {
+                translation: "I'll go if I can.",
+                nuance: "💡 【社交辞令】事実上「参加しない」ことを伝える柔らかい言い回しです。"
+            },
+            "お疲れ様です": {
+                translation: "Thank you for your hard work.",
+                nuance: "💡 【挨拶文化】他言語の'Hello'や'Good job'に相当する、労いと感謝を込めた万能な挨拶です。"
+            }
+        };
+
+        // State
+        let currentLang = LANGUAGES[0];
+        let partnerLang = LANGUAGES[1];
+        let myPeer = null;
+        let peerConnection = null;
+        let isSimulatedAI = false;
+        let userApiKey = localStorage.getItem('babel_gemini_key') || "";
+        let myPeerId = '';
+        let localChannel = null;
+
+        window.onload = () => {
+            renderLanguageList();
+            initPeer();
+            if(userApiKey) document.getElementById('gemini-api-key').value = userApiKey;
+
+            // iOS Safari キーボード表示時のスクロール調整
+            setupIosKeyboardFix();
+
+            // Check URL parameters & hash for joining ID
+            const urlParams = new URLSearchParams(window.location.search);
+            const hashId = window.location.hash.replace('#', '');
+            const targetPeerId = urlParams.get('join') || hashId;
+
+            if (targetPeerId) {
+                document.getElementById('status-text').innerText = "接続中...";
+                document.getElementById('manual-peer-id').value = targetPeerId;
+                setTimeout(() => connectToPeer(targetPeerId), 1500);
+            }
+        };
+
+        // iOS Safari 用のキーボードかぶり対策ロジック
+        function setupIosKeyboardFix() {
+            const inputEl = document.getElementById('chat-input');
+            const container = document.getElementById('chat-messages');
+
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', () => {
+                    document.body.style.height = `${window.visualViewport.height}px`;
+                    if (container) container.scrollTop = container.scrollHeight;
+                });
+                window.visualViewport.addEventListener('scroll', () => {
+                    window.scrollTo(0, 0);
+                });
+            }
+
+            inputEl.addEventListener('focus', () => {
+                setTimeout(() => {
+                    window.scrollTo(0, 0);
+                    if (container) container.scrollTop = container.scrollHeight;
+                }, 300);
+            });
+        }
+
+        function renderLanguageList() {
+            const container = document.getElementById('language-grid');
+            container.innerHTML = LANGUAGES.map(lang => `
+                <button onclick="selectLanguage('${lang.code}')" class="flex items-center gap-2 p-2.5 rounded-xl border ${currentLang.code === lang.code ? 'border-brand-500 bg-brand-500/10 text-brand-300' : 'border-slate-800 bg-slate-950/50 hover:bg-slate-800 text-slate-300'} transition text-xs font-medium">
+                    <span class="text-base">${lang.flag}</span>
+                    <span>${lang.name}</span>
+                </button>
+            `).join('');
+        }
+
+        function selectLanguage(code) {
+            currentLang = LANGUAGES.find(l => l.code === code) || LANGUAGES[0];
+            document.getElementById('current-lang-flag').innerText = currentLang.flag;
+            document.getElementById('current-lang-code').innerText = currentLang.code;
+            renderLanguageList();
+            toggleLangSelector();
+
+            sendDataPayload({ type: 'SYSTEM_LANG_UPDATE', lang: currentLang });
+        }
+
+        function toggleLangSelector() { document.getElementById('lang-modal').classList.toggle('hidden'); }
+        function toggleSettingsModal() { document.getElementById('settings-modal').classList.toggle('hidden'); }
+
+        function saveApiKey() {
+            userApiKey = document.getElementById('gemini-api-key').value.trim();
+            localStorage.setItem('babel_gemini_key', userApiKey);
+            toggleSettingsModal();
+        }
+
+        // --- P2P & Signaling Setup ---
+        function generateShortID() {
+            return Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
+
+        function initPeer() {
+            myPeerId = generateShortID();
+
+            // BroadcastChannel for same-origin tabs
+            try {
+                localChannel = new BroadcastChannel('babel_p2p_channel');
+                localChannel.onmessage = (event) => {
+                    const data = event.data;
+                    if (data && data.targetId === myPeerId) {
+                        if (data.type === 'CONNECT_REQUEST') {
+                            showChatView();
+                            localChannel.postMessage({ type: 'CONNECT_ACCEPT', targetId: data.senderId, senderId: myPeerId });
+                        } else if (data.type === 'CONNECT_ACCEPT') {
+                            showChatView();
+                        } else {
+                            handleIncomingPeerData(data.payload);
+                        }
+                    }
+                };
+            } catch(e) {
+                console.log("BroadcastChannel unavailable");
+            }
+
+            updatePeerUI(myPeerId);
+
+            // PeerJS Cloud Signaling Connection
+            try {
+                myPeer = new Peer(myPeerId, {
+                    debug: 1,
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:stun1.l.google.com:19302' }
+                        ]
+                    }
+                });
+
+                myPeer.on('open', (id) => {
+                    myPeerId = id;
+                    updatePeerUI(id);
+                });
+
+                myPeer.on('connection', (conn) => {
+                    peerConnection = conn;
+                    setupConnectionListeners();
+                });
+
+                myPeer.on('error', (err) => {
+                    console.warn("PeerJS connection warning:", err);
+                    document.getElementById('status-text').innerText = "接続待機中";
+                });
+            } catch (err) {
+                console.warn("PeerJS failed to load:", err);
+            }
+        }
+
+        function updatePeerUI(id) {
+            document.getElementById('display-peer-id').innerText = id;
+            document.getElementById('status-text').innerText = "待機中";
+            document.getElementById('status-dot').className = "w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse";
+
+            // Live Server / localtunnel / ホスティング環境に応じて自動で正しいURLを構築
+            let joinUrl = "";
+            const currentOrigin = window.location.origin;
+            
+            // ローカルファイル(file://)やlocalhostの場合のフォールバック通知
+            if (currentOrigin.includes('localhost') || currentOrigin.includes('127.0.0.1')) {
+                console.info("💡 スマホから接続する場合は、PCのIPアドレス(http://192.168.x.x:5500) または localtunnel/ngrokのURLでアクセスしてください。");
+            }
+
+            if (window.location.protocol.startsWith('http')) {
+                joinUrl = `${currentOrigin}${window.location.pathname}?join=${id}`;
+            } else {
+                joinUrl = `https://babelqr.app/#join=${id}`;
+            }
+
+            document.getElementById('qrcode').innerHTML = "";
+            new QRCode(document.getElementById('qrcode'), {
+                text: joinUrl,
+                width: 176,
+                height: 176,
+                colorDark: "#020617",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        }
+
+        function connectToPeer(targetId) {
+            const cleanTargetId = targetId.trim().toUpperCase();
+            if (!cleanTargetId) return;
+
+            if (myPeer && !myPeer.destroyed) {
+                try {
+                    peerConnection = myPeer.connect(cleanTargetId, { reliable: true });
+                    setupConnectionListeners();
+                } catch(e) {
+                    console.warn("PeerJS connect fail:", e);
+                }
+            }
+
+            if (localChannel) {
+                localChannel.postMessage({ type: 'CONNECT_REQUEST', targetId: cleanTargetId, senderId: myPeerId });
+            }
+        }
+
+        function handleManualConnect(e) {
+            e.preventDefault();
+            const targetId = document.getElementById('manual-peer-id').value.trim();
+            if (targetId) connectToPeer(targetId);
+        }
+
+        function setupConnectionListeners() {
+            if (!peerConnection) return;
+
+            peerConnection.on('open', () => {
+                showChatView();
+                sendDataPayload({ type: 'SYSTEM_LANG_UPDATE', lang: currentLang });
+            });
+
+            peerConnection.on('data', (data) => {
+                handleIncomingPeerData(data);
+            });
+
+            peerConnection.on('close', () => {
+                document.getElementById('status-text').innerText = "切断されました";
+                document.getElementById('status-dot').className = "w-2 h-2 rounded-full bg-red-500 inline-block";
+            });
+        }
+
+        function sendDataPayload(payload) {
+            if (peerConnection && peerConnection.open) {
+                peerConnection.send(payload);
+            }
+            if (localChannel) {
+                const targetId = document.getElementById('manual-peer-id').value.trim().toUpperCase();
+                localChannel.postMessage({
+                    type: 'DATA',
+                    targetId: targetId,
+                    senderId: myPeerId,
+                    payload: payload
+                });
+            }
+        }
+
+        // Single device test mode
+        function simulatePeerJoin() {
+            isSimulatedAI = true;
+            // 自分の言語と被らないように相手の言語をENに明示設定
+            partnerLang = LANGUAGES.find(l => l.code === (currentLang.code === 'EN' ? 'JA' : 'EN'));
+            showChatView();
+            setTimeout(() => {
+                appendMessage({
+                    sender: 'peer',
+                    originalText: "Hello! Try sending '検討します' or 'お疲れ様です' to test AI nuance cards!",
+                    translatedText: "こんにちは！「検討します」や「お疲れ様です」と入力して、AIニュアンスカードを試してみてください！",
+                    timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                });
+            }, 500);
+        }
+
+        function showChatView() {
+            document.getElementById('view-landing').classList.add('hidden');
+            document.getElementById('view-chat').classList.remove('hidden');
+            document.getElementById('status-text').innerText = "接続済み (リアルタイム)";
+            document.getElementById('status-dot').className = "w-2 h-2 rounded-full bg-emerald-400 inline-block";
+            document.getElementById('target-partner-lang').innerText = `相手の言語: ${partnerLang.name} ${partnerLang.flag}`;
+        }
+
+        function copyLink() {
+            const id = document.getElementById('display-peer-id').innerText;
+            const joinUrl = `${window.location.origin}${window.location.pathname}?join=${id}`;
+            navigator.clipboard.writeText(joinUrl).then(() => {
+                alert('接続用URLをコピーしました！別ブラウザや別タブで開いて接続できます。');
+            }).catch(() => {
+                const input = document.createElement('input');
+                input.value = joinUrl;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                alert('URLをコピーしました！別タブで開いてみてください。');
+            });
+        }
+
+        // --- Chat & Translation Processing ---
+        async function handleSendMessage(e) {
+            e.preventDefault();
+            const inputEl = document.getElementById('chat-input');
+            const text = inputEl.value.trim();
+            if (!text) return;
+
+            inputEl.value = '';
+            const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            // 1. 自分用バブル表示（自分の端末では原文を表示）
+            const myMsgPayload = {
+                type: 'CHAT_MESSAGE',
+                sender: 'me',
+                originalText: text,
+                translatedText: text, // 自分の送信メッセージは原文のまま
+                nuance: null,
+                timestamp: timestamp
+            };
+            appendMessage(myMsgPayload);
+
+            // 2. 相手端末へのP2P送信（原文＋送信者の言語コードを送信）
+            const p2pPayload = {
+                type: 'CHAT_MESSAGE',
+                originalText: text,
+                srcLang: currentLang,
+                timestamp: timestamp
+            };
+            sendDataPayload(p2pPayload);
+
+            if (isSimulatedAI) {
+                simulateAiPartnerReply(text);
+            }
+        }
+
+        function sendPictogram(label, emoji) {
+            const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const msgPayload = {
+                type: 'CHAT_MESSAGE',
+                sender: 'me',
+                isPictogram: true,
+                originalText: `${emoji} [${label}]`,
+                translatedText: `${emoji} [${label}]`,
+                timestamp: timestamp
+            };
+
+            appendMessage(msgPayload);
+            sendDataPayload(msgPayload);
+        }
+
+        async function handleIncomingPeerData(data) {
+            if (!data) return;
+            if (data.type === 'SYSTEM_LANG_UPDATE') {
+                partnerLang = data.lang;
+                document.getElementById('target-partner-lang').innerText = `相手の表示言語: ${partnerLang.name} ${partnerLang.flag}`;
+            } else if (data.type === 'CHAT_MESSAGE') {
+                if (data.isPictogram) {
+                    data.sender = 'peer';
+                    appendMessage(data);
+                    return;
+                }
+
+                // 相手から受信した原文を、自分（受信側）の言語へ翻訳処理
+                const srcLang = data.srcLang || partnerLang;
+                const translationResult = await processAiTranslation(data.originalText, srcLang, currentLang);
+
+                appendMessage({
+                    sender: 'peer',
+                    originalText: data.originalText,
+                    translatedText: translationResult.translation,
+                    nuance: translationResult.nuance,
+                    timestamp: data.timestamp
+                });
+            }
+        }
+
+        async function processAiTranslation(text, srcLang, tgtLang) {
+            // 1. 事前登録ニュアンスデータベースの判定
+            if (MOCK_NUANCE_DB[text]) {
+                return MOCK_NUANCE_DB[text];
+            }
+
+            // 2. 送信元と言語が同じ場合は翻訳不要
+            if (srcLang.code === tgtLang.code) {
+                return { translation: text, nuance: null };
+            }
+
+            // 3. Gemini API Key が設定されている場合（高度な翻訳 ＋ ニュアンス自動抽出）
+            if (userApiKey) {
+                try {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${userApiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{
+                                    text: `Translate from ${srcLang.targetPrompt} to ${tgtLang.targetPrompt}. If there is a cultural nuance, return it in "nuance". Return JSON: {"translation": "...", "nuance": "..." or null}. Text: "${text}"`
+                                }]
+                            }],
+                            generationConfig: { responseMimeType: "application/json" }
+                        })
+                    });
+                    const data = await response.json();
+                    const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (resultText) return JSON.parse(resultText);
+                } catch (err) {
+                    console.warn("Gemini API Error, using free API fallback", err);
+                }
+            }
+
+            // 4. 完全無料・キー不要の MyMemory Translation API （リアルタイム自動翻訳）
+            try {
+                const langPair = `${srcLang.code.toLowerCase()}|${tgtLang.code.toLowerCase()}`;
+                const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`);
+                const data = await res.json();
+                
+                if (data && data.responseData && data.responseData.translatedText) {
+                    return {
+                        translation: data.responseData.translatedText,
+                        nuance: null
+                    };
+                }
+            } catch (err) {
+                console.warn("Free Translation API Error", err);
+            }
+
+            // フォールバック
+            return {
+                translation: text,
+                nuance: null
+            };
+        }
+
+        function simulateAiPartnerReply(userText) {
+            setTimeout(async () => {
+                let replyOriginal = "Thank you for your message! How can I help you today?";
+                
+                // 受信側（自分）の言語に翻訳して表示
+                const translationResult = await processAiTranslation(replyOriginal, partnerLang, currentLang);
+
+                appendMessage({
+                    sender: 'peer',
+                    originalText: replyOriginal,
+                    translatedText: translationResult.translation,
+                    nuance: translationResult.nuance,
+                    timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                });
+            }, 1000);
+        }
+
+        function appendMessage(msg) {
+            const container = document.getElementById('chat-messages');
+            const isMe = msg.sender === 'me';
+
+            const bubbleWrapper = document.createElement('div');
+            bubbleWrapper.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} mb-3`;
+
+            const bubble = document.createElement('div');
+            bubble.className = `max-w-[85%] rounded-2xl p-3 text-xs sm:text-sm shadow-md ${
+                isMe 
+                ? 'bg-brand-600 text-white rounded-br-none' 
+                : 'bg-slate-800 text-slate-100 border border-slate-700/80 rounded-bl-none'
+            }`;
+
+            if (msg.isPictogram) {
+                bubble.innerHTML = `<div class="text-base font-bold flex items-center gap-2">${msg.originalText}</div>`;
+            } else {
+                bubble.innerHTML = `
+                    <div class="font-medium leading-relaxed">${msg.translatedText}</div>
+                    <div class="text-[10px] mt-1 pt-1 border-t ${isMe ? 'border-brand-500/50 text-brand-200' : 'border-slate-700 text-slate-400'}">
+                        <span class="italic opacity-85">原文: "${msg.originalText}"</span>
+                    </div>
+                `;
+            }
+
+            bubbleWrapper.appendChild(bubble);
+
+            if (msg.nuance) {
+                const nuanceCard = document.createElement('div');
+                nuanceCard.className = "max-w-[85%] mt-1.5 p-2.5 rounded-xl bg-purple-950/70 border border-purple-500/40 text-[11px] text-purple-200 shadow-sm space-y-1";
+                nuanceCard.innerHTML = `<p class="leading-normal">${msg.nuance}</p>`;
+                bubbleWrapper.appendChild(nuanceCard);
+            }
+
+            const timeEl = document.createElement('span');
+            timeEl.className = 'text-[9px] text-slate-500 mt-0.5 px-1';
+            timeEl.innerText = msg.timestamp;
+            bubbleWrapper.appendChild(timeEl);
+
+            container.appendChild(bubbleWrapper);
+            container.scrollTop = container.scrollHeight;
+        }
+    </script>
+</body>
+</html>
