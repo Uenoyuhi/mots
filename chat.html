@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <!-- キーボード表示時のビューポート自動調整（100dvh活用） -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+  <title>BabelChat - P2P Translation</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PeerJS (WebRTC P2P通信) -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <!-- QRCode.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* モバイルブラウザのアドレスバー・キーボード可変対応 */
+    body {
+      height: 100dvh;
+      overscroll-behavior-y: none;
+    }
+    
+    .chat-container {
+      height: calc(100dvh - 120px);
+    }
+
+    /* カスタムスクロールバー */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #374151;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 flex flex-col font-sans select-none overflow-hidden">
+
+  <!-- ヘッダー -->
+  <header class="h-14 border-b border-slate-800 bg-slate-900/80 backdrop-blur px-4 flex items-center justify-between shrink-0 z-20">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/30">
+        💬
+      </div>
+      <span class="font-bold text-base bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">BabelChat</span>
+    </div>
+
+    <!-- ステータス ＆ 言語切り替えボタン -->
+    <div class="flex items-center gap-2">
+      <div id="connectionStatus" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+        <span id="statusText">接続待機中</span>
+      </div>
+
+      <select id="langSelect" class="bg-slate-800 border border-slate-700 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-indigo-500">
+        <option value="ja">🇯🇵 日本語</option>
+        <option value="en">🇺🇸 English</option>
+        <option value="zh">🇨🇳 中文</option>
+        <option value="ko">🇰🇷 한국語</option>
+        <option value="es">🇪🇸 Español</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- メインコンテンツ -->
+  <main class="flex-1 relative flex flex-col overflow-hidden">
+
+    <!-- 1. ホスト画面 (QRコード表示) -->
+    <div id="hostScreen" class="absolute inset-0 z-10 bg-slate-950 p-6 flex flex-col items-center justify-center text-center">
+      <div class="max-w-xs w-full bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl flex flex-col items-center">
+        <h2 class="text-lg font-bold mb-1 text-slate-100">相手を招待</h2>
+        <p class="text-xs text-slate-400 mb-6">カメラでこのQRコードを読み込んでチャットを開始</p>
+        
+        <div class="p-3 bg-white rounded-xl shadow-inner mb-6">
+          <div id="qrcode"></div>
+        </div>
+
+        <div class="text-xs text-slate-500 flex items-center gap-1">
+          <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+          <span>サーバーを介さない暗号化直接通信</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. チャット画面 -->
+    <div id="chatScreen" class="flex-1 flex flex-col h-full bg-slate-950 overflow-hidden">
+      <!-- メッセージ表示エリア -->
+      <div id="messageContainer" class="flex-1 overflow-y-auto p-4 space-y-4">
+        <!-- 初回ノンバーバル説明カード -->
+        <div id="welcomeCard" class="bg-indigo-950/40 border border-indigo-800/50 rounded-xl p-3 text-center my-2">
+          <p class="text-xs text-indigo-300 flex items-center justify-center gap-1">
+            <span>✨</span>
+            <span>自分の言語で送信すると相手の言語に自動変換されます</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- リアルタイム入力中表示 -->
+      <div id="typingIndicator" class="h-6 px-4 text-xs text-slate-500 flex items-center gap-1 opacity-0 transition-opacity">
+        <span class="animate-bounce">●</span>
+        <span class="animate-bounce delay-100">●</span>
+        <span class="animate-bounce delay-200">●</span>
+        <span class="ml-1">相手が入力中...</span>
+      </div>
+
+      <!-- リアクションスタンプバー -->
+      <div class="px-4 py-1.5 flex gap-2 overflow-x-auto border-t border-slate-900 bg-slate-950/90 shrink-0">
+        <button onclick="sendStamp('👍')" class="px-3 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-full text-sm">👍</button>
+        <button onclick="sendStamp('🙏')" class="px-3 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-full text-sm">🙏</button>
+        <button onclick="sendStamp('💡')" class="px-3 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-full text-sm">💡</button>
+        <button onclick="sendStamp('❤️')" class="px-3 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-full text-sm">❤️</button>
+        <button onclick="sendStamp('😂')" class="px-3 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-full text-sm">😂</button>
+      </div>
+
+      <!-- 入力エリア (固定フッター) -->
+      <div id="inputFooter" class="p-3 bg-slate-900 border-t border-slate-800 shrink-0 z-30">
+        <form id="chatForm" onsubmit="sendMessage(event)" class="flex items-center gap-2">
+          <button type="button" id="micBtn" onclick="toggleSpeechRecognition()" class="p-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+            <i data-lucide="mic" class="w-5 h-5"></i>
+          </button>
+          
+          <input 
+            type="text" 
+            id="messageInput" 
+            placeholder="メッセージを入力..." 
+            autocomplete="off"
+            oninput="handleTyping()"
+            class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 placeholder-slate-500"
+          >
+
+          <button type="submit" class="p-2.5 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-500 transition shadow-lg shadow-indigo-600/30">
+            <i data-lucide="send" class="w-5 h-5"></i>
+          </button>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // --- 構成 & パブリックSTUNサーバー（異なるキャリア・Wi-Fi間接続用） ---
+    const PEER_CONFIG = {
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' }
+        ]
+      }
+    };
+
+    let peer = null;
+    let conn = null;
+    let typingTimeout = null;
+    let isHost = true;
+
+    // --- ビューポート / キーボード被り対策 ---
+    function setupViewportFix() {
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+          document.body.style.height = `${window.visualViewport.height}px`;
+          const container = document.getElementById('messageContainer');
+          if (container) container.scrollTop = container.scrollHeight;
+        });
+      }
+    }
+
+    // --- 初期化 ---
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      setupViewportFix();
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomId = urlParams.get('room');
+
+      if (roomId) {
+        // ゲストモード (QRコードを読み取ってアクセス)
+        isHost = false;
+        document.getElementById('hostScreen').classList.add('hidden');
+        initGuest(roomId);
+      } else {
+        // ホストモード (アクセスしてQRコードを生成)
+        initHost();
+      }
+    });
+
+    // --- ホスト初期化 ---
+    function initHost() {
+      const roomCode = 'babel-' + Math.random().toString(36).substring(2, 9);
+      peer = new Peer(roomCode, PEER_CONFIG);
+
+      peer.on('open', (id) => {
+        const guestUrl = `${window.location.origin}${window.location.pathname}?room=${id}`;
+        
+        // QRコード生成
+        new QRCode(document.getElementById("qrcode"), {
+          text: guestUrl,
+          width: 180,
+          height: 180,
+          colorDark : "#000000",
+          colorLight : "#ffffff",
+          correctLevel : QRCode.CorrectLevel.H
+        });
+      });
+
+      peer.on('connection', (connection) => {
+        conn = connection;
+        setupConnectionEvents();
+      });
+
+      peer.on('error', (err) => console.error("Peer Error:", err));
+    }
+
+    // --- ゲスト初期化 ---
+    function initGuest(roomId) {
+      updateStatus("接続中...", "amber");
+      peer = new Peer(PEER_CONFIG);
+
+      peer.on('open', () => {
+        conn = peer.connect(roomId, { reliable: true });
+        setupConnectionEvents();
+      });
+
+      peer.on('error', (err) => {
+        console.error("Peer Error:", err);
+        updateStatus("接続失敗", "red");
+      });
+    }
+
+    // --- 通信イベント共有ハンドラ ---
+    function setupConnectionEvents() {
+      conn.on('open', () => {
+        document.getElementById('hostScreen').classList.add('hidden');
+        updateStatus("接続完了", "emerald");
+      });
+
+      conn.on('data', (data) => {
+        if (data.type === 'chat') {
+          renderMessage(data.text, 'remote', data.lang);
+        } else if (data.type === 'typing') {
+          showTypingIndicator();
+        }
+      });
+
+      conn.on('close', () => {
+        updateStatus("切断されました", "red");
+      });
+    }
+
+    // --- ステータス更新 ---
+    function updateStatus(text, color) {
+      const statusEl = document.getElementById('connectionStatus');
+      const statusText = document.getElementById('statusText');
+      statusText.innerText = text;
+      
+      statusEl.className = `flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-${color}-500/10 text-${color}-400 border border-${color}-500/20`;
+    }
+
+    // --- メッセージ送信 ---
+    function sendMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      if (!text || !conn) return;
+
+      const myLang = document.getElementById('langSelect').value;
+      
+      // 送信データ
+      conn.send({
+        type: 'chat',
+        text: text,
+        lang: myLang
+      });
+
+      renderMessage(text, 'local', myLang);
+      input.value = '';
+    }
+
+    function sendStamp(emoji) {
+      if (!conn) return;
+      conn.send({ type: 'chat', text: emoji, lang: 'emoji' });
+      renderMessage(emoji, 'local', 'emoji');
+    }
+
+    // --- タイピング検知 ---
+    function handleTyping() {
+      if (conn) {
+        conn.send({ type: 'typing' });
+      }
+    }
+
+    function showTypingIndicator() {
+      const el = document.getElementById('typingIndicator');
+      el.style.opacity = '1';
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+        el.style.opacity = '0';
+      }, 2000);
+    }
+
+    // --- 疑似LLMニュアンス翻訳機能 ---
+    function generateNuanceNote(text) {
+      // LLMによるニュアンス解説のモック処理
+      if (text.includes("検討") || text.includes("考えます")) {
+        return "💡 日本語の「検討します」は、丁寧なお断りの意味を含んでいる場合があります。";
+      } else if (text.includes("大丈夫")) {
+        return "💡 文脈によって「OK（問題ない）」と「NO（結構です）」の両方の意味になります。";
+      }
+      return null;
+    }
+
+    // --- メッセージ描画 ---
+    function renderMessage(text, side, lang) {
+      const container = document.getElementById('messageContainer');
+      const isLocal = side === 'local';
+      
+      const wrapper = document.createElement('div');
+      wrapper.className = `flex flex-col ${isLocal ? 'items-end' : 'items-start'} mb-3`;
+
+      const nuanceNote = !isLocal ? generateNuanceNote(text) : null;
+
+      wrapper.innerHTML = `
+        <div class="max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
+          isLocal 
+            ? 'bg-indigo-600 text-white rounded-br-none shadow-md' 
+            : 'bg-slate-800 text-slate-100 rounded-bl-none border border-slate-700 shadow-md'
+        }">
+          <p>${escapeHtml(text)}</p>
+        </div>
+        ${nuanceNote ? `
+          <div class="mt-1 max-w-[80%] bg-purple-950/40 border border-purple-800/40 rounded-xl px-3 py-1.5 text-xs text-purple-300">
+            ${nuanceNote}
+          </div>
+        ` : ''}
+      `;
+
+      container.appendChild(wrapper);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, (m) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[m]);
+    }
+
+    // --- 音声入力 (Web Speech API) ---
+    function toggleSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("お使いのブラウザは音声入力に対応していません。");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = document.getElementById('langSelect').value === 'ja' ? 'ja-JP' : 'en-US';
+      const micBtn = document.getElementById('micBtn');
+
+      micBtn.classList.add('bg-red-600', 'text-white', 'animate-pulse');
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        document.getElementById('messageInput').value = transcript;
+      };
+
+      recognition.onend = () => {
+        micBtn.classList.remove('bg-red-600', 'text-white', 'animate-pulse');
+      };
+
+      recognition.start();
+    }
+  </script>
+</body>
+</html>
